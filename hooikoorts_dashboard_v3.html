@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pollen NL">
+    <meta name="theme-color" content="#2d7a47">
+    <title>Pollen Monitor Nederland</title>
+
+    <!-- PWA manifest inline -->
+    <script>
+    const manifestData = {
+        name: "Pollen Monitor Nederland",
+        short_name: "Pollen NL",
+        description: "Realtime hooikoorts-analyse met drogisterij-locator",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#f0f4f1",
+        theme_color: "#2d7a47",
+        orientation: "portrait-primary",
+        icons: [
+            { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232d7a47'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" }
+        ]
+    };
+    const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+    document.addEventListener('DOMContentLoaded', () => {
+        const link = document.createElement('link');
+        link.rel = 'manifest'; link.href = manifestURL;
+        document.head.appendChild(link);
+    });
+    </script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:      #f0f4f1;
+            --surf:    #ffffff;
+            --surf2:   #f7faf8;
+            --border:  #dde8e0;
+            --txt:     #1a2e20;
+            --muted:   #6b8572;
+            --green:   #2d7a47;
+            --glight:  #e8f5ed;
+            --r: 14px;
+            --sh: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; }
+
+        /* HEADER */
+        .hdr {
+            background:var(--surf); border-bottom:1px solid var(--border);
+            padding:14px 24px; display:flex; align-items:center;
+            justify-content:space-between; gap:12px; flex-wrap:wrap;
+            box-shadow:var(--sh); position:relative; z-index:10;
+        }
+        .hdr-brand { display:flex; align-items:center; gap:12px; }
+        .hdr-icon {
+            width:40px; height:40px; border-radius:10px;
+            background:linear-gradient(135deg,#2d7a47,#5cb87a);
+            display:flex; align-items:center; justify-content:center; font-size:20px;
+        }
+        .hdr-title { font-family:'DM Serif Display',serif; font-size:20px; line-height:1.1; }
+        .hdr-sub   { font-size:11px; color:var(--muted); }
+        .hdr-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+
+        .live-pill {
+            display:inline-flex; align-items:center; gap:5px;
+            background:var(--glight); color:var(--green);
+            font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px;
+        }
+        .live-pill::before {
+            content:''; width:6px; height:6px; border-radius:50%;
+            background:var(--green); animation:pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
+
+        .date-chip {
+            background:var(--surf2); border:1px solid var(--border);
+            padding:6px 14px; border-radius:8px; font-size:11px; color:var(--muted);
+        }
+        .loc-btn {
+            background:var(--green); color:#fff; border:none; cursor:pointer;
+            padding:9px 18px; border-radius:9px;
+            font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
+            display:flex; align-items:center; gap:7px; transition:all .2s;
+            box-shadow:0 2px 8px rgba(45,122,71,.3);
+        }
+        .loc-btn:hover { background:#236138; transform:translateY(-1px); }
+        .loc-btn:disabled { opacity:.6; cursor:default; transform:none; }
+
+        /* LAYOUT */
+        .main {
+            display:grid; grid-template-columns:320px 1fr;
+            gap:16px; padding:16px 24px;
+            height:calc(100vh - 72px);
+        }
+        @media(max-width:900px){ .main{ grid-template-columns:1fr; height:auto; } }
+
+        /* SIDEBAR */
+        .sidebar { display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
+        .sidebar::-webkit-scrollbar { width:3px; }
+        .sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+        .card {
+            background:var(--surf); border:1px solid var(--border);
+            border-radius:var(--r); padding:16px; box-shadow:var(--sh);
+        }
+        .card-h {
+            font-family:'DM Serif Display',serif; font-size:15px;
+            padding-bottom:10px; margin-bottom:12px;
+            border-bottom:1px solid var(--border);
+            display:flex; align-items:center; justify-content:space-between;
+        }
+        .tag {
+            font-family:'DM Sans',sans-serif; font-size:10px; font-weight:600;
+            text-transform:uppercase; letter-spacing:.04em;
+            padding:2px 8px; border-radius:20px;
+        }
+        .tag-green  { background:var(--glight); color:var(--green); }
+        .tag-grey   { background:#f1f5f9; color:#64748b; }
+        .tag-red    { background:#fef2f2; color:#c0292d; }
+
+        /* Weather rows */
+        .w-row {
+            display:flex; align-items:center; justify-content:space-between;
+            padding:7px 0; border-bottom:1px solid var(--surf2);
+            font-size:13px;
+        }
+        .w-row:last-child { border:none; }
+        .w-lbl { color:var(--muted); display:flex; align-items:center; gap:6px; }
+        .w-val { font-weight:700; font-variant-numeric:tabular-nums; }
+
+        /* Local index */
+        .idx-num { font-family:'DM Serif Display',serif; font-size:58px; line-height:1; }
+        .idx-lbl { font-size:10px; text-transform:uppercase; letter-spacing:.1em; font-weight:600; color:var(--muted); margin:2px 0 12px; }
+        .adv-box {
+            background:var(--surf2); border:1px solid var(--border);
+            border-radius:9px; padding:10px 12px;
+        }
+        .adv-box strong { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--green); display:block; margin-bottom:3px; }
+        .adv-box p { font-size:12px; line-height:1.5; color:var(--muted); }
+        .store-count-box {
+            margin-top:10px; font-size:11px; line-height:1.6;
+            background:var(--surf2); border:1px solid var(--border);
+            border-radius:8px; padding:8px 10px; text-align:center;
+        }
+
+        /* Legend */
+        .leg-row { display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px; }
+        .leg-sw  { width:24px; height:12px; border-radius:3px; flex-shrink:0; }
+        hr.leg-div { border:none; border-top:1px solid var(--border); margin:10px 0; }
+        .store-tags { display:flex; gap:10px; flex-wrap:wrap; }
+        .store-tag  { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+        .store-dot  { width:10px; height:10px; border-radius:50%; }
+
+        /* Tips */
+        .tip {
+            display:flex; gap:10px; align-items:flex-start;
+            background:var(--surf2); border:1px solid var(--border);
+            border-radius:9px; padding:10px 11px; margin-bottom:8px;
+            transition:transform .15s;
+        }
+        .tip:last-child { margin-bottom:0; }
+        .tip:hover { transform:translateX(2px); }
+        .tip-ico { font-size:18px; width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#fff; border-radius:7px; box-shadow:var(--sh); }
+        .tip-body strong { font-size:12px; font-weight:600; display:block; margin-bottom:2px; }
+        .tip-body p { font-size:11px; color:var(--muted); line-height:1.5; }
+
+        /* PWA install banner */
+        .pwa-banner {
+            background:linear-gradient(135deg,#1a5c30,#2d7a47);
+            color:#fff; border-radius:var(--r); padding:14px 16px;
+            display:flex; gap:12px; align-items:center;
+        }
+        .pwa-ico { font-size:24px; flex-shrink:0; }
+        .pwa-text strong { font-size:13px; font-weight:600; display:block; margin-bottom:2px; }
+        .pwa-text p { font-size:11px; opacity:.85; line-height:1.5; }
+
+        /* MAP */
+        .map-wrap {
+            position:relative; border-radius:var(--r); overflow:hidden;
+            box-shadow:0 4px 24px rgba(0,0,0,.12); height:100%; min-height:480px;
+        }
+        #map { width:100%; height:100%; background:#e8f0eb; }
+
+        /* Hover info panel */
+        .map-panel {
+            position:absolute; bottom:16px; right:14px; z-index:1200;
+            background:rgba(255,255,255,.97); backdrop-filter:blur(12px);
+            border:1px solid var(--border); border-radius:12px;
+            padding:14px 16px; min-width:200px; max-width:260px;
+            box-shadow:0 4px 20px rgba(0,0,0,.12);
+            display:none; animation:slideUp .18s ease;
+        }
+        @keyframes slideUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        .map-panel h3 { font-family:'DM Serif Display',serif; font-size:16px; margin-bottom:2px; }
+        .map-panel .val { font-size:34px; font-weight:800; line-height:1; }
+        .map-panel .sub { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:600; margin-bottom:8px; }
+        .map-panel .adv { font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:8px; line-height:1.5; }
+
+        /* Spinner */
+        .spin { border:2px solid rgba(255,255,255,.3); border-top:2px solid #fff; border-radius:50%; width:13px; height:13px; animation:rot .7s linear infinite; display:inline-block; }
+        @keyframes rot { to{transform:rotate(360deg)} }
+
+        /* Leaflet overrides */
+        .pollen-tip { background:#fff!important; border:1px solid var(--border)!important; border-radius:8px!important; padding:6px 10px!important; font-family:'DM Sans',sans-serif!important; font-size:12px!important; box-shadow:0 2px 8px rgba(0,0,0,.1)!important; color:var(--txt)!important; }
+        .pollen-tip::before { display:none!important; }
+        .leaflet-popup-content-wrapper { border-radius:12px!important; font-family:'DM Sans',sans-serif!important; box-shadow:0 4px 20px rgba(0,0,0,.15)!important; }
+        .leaflet-popup-content { margin:12px 14px!important; }
+        .store-pop h4 { font-weight:700; font-size:13px; margin-bottom:4px; }
+        .store-pop p  { font-size:11px; color:#555; line-height:1.5; margin-bottom:2px; }
+        .s-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+    <div class="hdr-brand">
+        <div class="hdr-icon">🌿</div>
+        <div>
+            <div class="hdr-title">Pollen Monitor</div>
+            <div class="hdr-sub">Realtime hooikoorts-analyse voor Nederland</div>
+        </div>
+    </div>
+    <div class="hdr-right">
+        <span class="live-pill">Live</span>
+        <span class="date-chip" id="cur-date">–</span>
+        <button class="loc-btn" id="loc-btn" onclick="getUserLocation()">
+            <span id="btn-ico">📍</span>
+            <span id="btn-txt">Mijn locatie laden</span>
+        </button>
+    </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+    <aside class="sidebar">
+
+        <!-- Lokale index -->
+        <div class="card">
+            <div class="card-h">Lokale Index <span class="tag tag-grey" id="loc-tag">Stand-by</span></div>
+            <div id="local-box">
+                <p style="font-size:13px;color:var(--muted);font-style:italic;text-align:center;padding:16px 0">
+                    Klik op <strong>Mijn locatie laden</strong> om uw pollenindex te berekenen.
+                </p>
+            </div>
+        </div>
+
+        <!-- Weerdata -->
+        <div class="card">
+            <div class="card-h">Weercondities <span class="tag tag-green">Open-Meteo</span></div>
+            <div class="w-row"><span class="w-lbl">🌡️ Temperatuur</span><span class="w-val" id="v-temp">– °C</span></div>
+            <div class="w-row"><span class="w-lbl">💨 Wind</span><span class="w-val" id="v-wind">– km/h</span></div>
+            <div class="w-row"><span class="w-lbl">⚠️ Risico</span><span class="tag tag-grey" id="v-risk">Laden…</span></div>
+        </div>
+
+        <!-- Legenda -->
+        <div class="card">
+            <div class="card-h">Legenda</div>
+            <div class="leg-row"><div class="leg-sw" style="background:#10b981"></div><span>Laag (0–20) – Gunstig</span></div>
+            <div class="leg-row"><div class="leg-sw" style="background:#a855f7"></div><span>Matig (21–40) – Let op</span></div>
+            <div class="leg-row"><div class="leg-sw" style="background:#facc15"></div><span>Verhoogd (41–60) – Voorzichtig</span></div>
+            <div class="leg-row"><div class="leg-sw" style="background:#f97316"></div><span>Hoog (61–80) – Risico</span></div>
+            <div class="leg-row"><div class="leg-sw" style="background:#ef4444"></div><span>Kritiek (&gt;80) – Zeer hoog</span></div>
+            <hr class="leg-div">
+            <div class="store-tags">
+                <div class="store-tag"><div class="store-dot" style="background:#0055A5"></div>Etos</div>
+                <div class="store-tag"><div class="store-dot" style="background:#006F3C"></div>Kruidvat</div>
+                <div class="store-tag"><div class="store-dot" style="background:#E30613"></div>Trekpleister</div>
+            </div>
+        </div>
+
+        <!-- PWA install tip -->
+        <div class="pwa-banner" id="pwa-banner">
+            <div class="pwa-ico">📱</div>
+            <div class="pwa-text">
+                <strong>Installeer als app op iPhone</strong>
+                <p>Open in Safari → tik <strong>Deel</strong> (□↑) → kies <em>Zet op beginscherm</em>. De app werkt daarna offline.</p>
+            </div>
+        </div>
+
+        <!-- Tips -->
+        <div class="card">
+            <div class="card-h">Hooikoorts Tips</div>
+            <div class="tip"><div class="tip-ico">💊</div><div class="tip-body"><strong>Antihistaminica</strong><p>Cetirizine of loratadine vrij verkrijgbaar. Neem 30 min voor blootstelling voor optimaal effect.</p></div></div>
+            <div class="tip"><div class="tip-ico">👃</div><div class="tip-body"><strong>Neusspray</strong><p>Corticosteroïden (beclomethason) zijn het meest effectief. Dagelijks gebruik is essentieel.</p></div></div>
+            <div class="tip"><div class="tip-ico">🚿</div><div class="tip-body"><strong>Haar wassen voor slapen</strong><p>Pollen hecht aan haar. Douchen voor bedtijd beperkt nachtelijke blootstelling sterk.</p></div></div>
+            <div class="tip"><div class="tip-ico">🪟</div><div class="tip-body"><strong>Ramen sluiten</strong><p>Pollen is hoogst tussen 05:00–10:00. Luch 's avonds na regen als pollen laag is.</p></div></div>
+            <div class="tip"><div class="tip-ico">😎</div><div class="tip-body"><strong>Zonnebril dragen</strong><p>Een strakke bril reduceert blootstelling van de ogen aan pollen bij buitenactiviteiten.</p></div></div>
+            <div class="tip"><div class="tip-ico">🌊</div><div class="tip-body"><strong>Oogdruppels</strong><p>Natriumcromoglicaat stabiliseert mestcellen. Effectief bij tranende, jeukende ogen.</p></div></div>
+            <div class="tip"><div class="tip-ico">🏠</div><div class="tip-body"><strong>HEPA-luchtreiniger</strong><p>Verwijdert 99,97% van pollendeeltjes. Zet in de slaapkamer voor het meeste effect.</p></div></div>
+            <div class="tip"><div class="tip-ico">🩺</div><div class="tip-body"><strong>Immunotherapie</strong><p>Bij ernstige klachten: vraag huisarts naar SCIT/SLIT voor blijvende verbetering.</p></div></div>
+        </div>
+
+    </aside>
+
+    <!-- MAP -->
+    <div class="map-wrap">
+        <div id="map"></div>
+        <div class="map-panel" id="hover-panel">
+            <h3 id="p-city">—</h3>
+            <div class="val" id="p-val">–</div>
+            <div class="sub">Pollen Index</div>
+            <div class="adv" id="p-adv"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+const provinceBase = {
+    "Groningen":35,"Friesland":38,"Drenthe":42,"Overijssel":68,
+    "Flevoland":52,"Gelderland":75,"Utrecht":82,"Noord-Holland":60,
+    "Zuid-Holland":55,"Zeeland":44,"Noord-Brabant":88,"Limburg":90
+};
+
+function getColor(d){
+    return d>80?'#ef4444':d>60?'#f97316':d>40?'#facc15':d>20?'#a855f7':'#10b981';
+}
+function getAdvice(d){
+    if(d>80) return "Dringend: Ramen dicht, neem medicatie, beperk buitenactiviteiten.";
+    if(d>60) return "Hoog risico: Gebruik antihistaminica preventief. Haar wassen voor slapen.";
+    if(d>40) return "Matig: Vermijd parken en gemaaide velden. Draag zonnebril.";
+    if(d>20) return "Licht verhoogd: Gevoelige personen kunnen klachten ervaren.";
+    return "Gunstig: Goed moment voor buiten zijn. Geniet ervan!";
+}
+
+/* ═══════════════════════════════════════════
+   KAART INIT — twee custom panes
+   provincesPane z=200  → pointer-events:none (alleen visueel)
+   markerPane   z=600   → standaard Leaflet, volledig klikbaar
+═══════════════════════════════════════════ */
+let map, geoLayer, userMarker, storeMarkers=[], weatherFactor=1.0, geoData=null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('cur-date').textContent =
+        new Intl.DateTimeFormat('nl-NL',{dateStyle:'full'}).format(new Date());
+
+    // Verberg PWA-banner op niet-mobiel
+    if(!/iphone|ipad|android/i.test(navigator.userAgent))
+        document.getElementById('pwa-banner').style.display='none';
+
+    map = L.map('map',{zoomControl:true}).setView([52.2,5.3],7);
+
+    // ── Provincies-pane: puur visueel, geen pointer-events ──
+    map.createPane('provincesPane');
+    map.getPane('provincesPane').style.zIndex  = '200';
+    map.getPane('provincesPane').style.pointerEvents = 'none'; // ← KRITIEKE FIX
+
+    // ── Stores-pane: boven alles, volledig interactief ──
+    map.createPane('storesPane');
+    map.getPane('storesPane').style.zIndex  = '650';
+    map.getPane('storesPane').style.pointerEvents = 'auto';
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{
+        attribution:'© OpenStreetMap © CARTO', maxZoom:19
+    }).addTo(map);
+
+    // Tooltip-stijlen injecteren
+    const s=document.createElement('style');
+    s.textContent=`.pollen-tip{background:#fff!important;border:1px solid #dde8e0!important;border-radius:8px!important;padding:6px 10px!important;font-family:'DM Sans',sans-serif!important;font-size:12px!important;box-shadow:0 2px 8px rgba(0,0,0,.1)!important;}.pollen-tip::before{display:none!important;}`;
+    document.head.appendChild(s);
+
+    await updateWeather();
+    await loadProvinces();
+
+    // Province-hover via map mousemove (werkt ondanks pointer-events:none op de pane)
+    map.on('mousemove', onMapMouseMove);
+    map.on('mouseout',  ()=>{ document.getElementById('hover-panel').style.display='none'; });
+
+    setTimeout(()=>map.invalidateSize(),400);
+});
+
+/* ═══════════════════════════════════════════
+   WEER
+═══════════════════════════════════════════ */
+async function updateWeather(lat=52.13,lon=5.29){
+    try{
+        const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        const d=await r.json();
+        const {temperature:t,windspeed:w}=d.current_weather;
+        document.getElementById('v-temp').textContent=`${t} °C`;
+        document.getElementById('v-wind').textContent=`${w} km/h`;
+        weatherFactor=(t>20?1.2:1.0)*(w>15?1.15:1.0);
+        const avg=Object.values(provinceBase).reduce((a,b)=>a+b,0)/12*weatherFactor;
+        const rv=document.getElementById('v-risk');
+        rv.textContent=avg>70?'KRITIEK':'NORMAAL';
+        rv.className=avg>70?'tag tag-red':'tag tag-green';
+    }catch{weatherFactor=1.0;}
+}
+
+/* ═══════════════════════════════════════════
+   PROVINCIEKAART
+═══════════════════════════════════════════ */
+const GEOJSON_URLS=[
+    'https://cartomap.github.io/nl/wgs84/provincie_2023.geojson',
+    'https://raw.githubusercontent.com/cartomap/nl/master/wgs84/provincie_2023.geojson'
+];
+
+async function loadProvinces(){
+    for(const url of GEOJSON_URLS){
+        try{
+            const r=await fetch(url);
+            if(!r.ok)continue;
+            geoData=await r.json();
+            renderProvinces();
+            return;
+        }catch{}
+    }
+    console.warn('GeoJSON niet beschikbaar; fallback cirkels.');
+    renderFallback();
+}
+
+function pollenVal(provinceName){
+    const base=provinceBase[provinceName]||55;
+    return Math.min(100,Math.round(base*weatherFactor));
+}
+
+function renderProvinces(){
+    if(geoLayer)map.removeLayer(geoLayer);
+    geoLayer=L.geoJSON(geoData,{
+        pane:'provincesPane',          // ← in de niet-interactieve pane
+        interactive:false,             // ← geen Leaflet-events registreren
+        style:f=>{
+            const nm=f.properties.statnaam||f.properties.name||'';
+            return {
+                fillColor:getColor(pollenVal(nm)),
+                fillOpacity:0.55,
+                color:'rgba(255,255,255,0.8)',
+                weight:1.5
+            };
+        }
+    }).addTo(map);
+}
+
+function refreshProvinceColors(){
+    if(!geoLayer)return;
+    geoLayer.eachLayer(l=>{
+        const nm=l.feature?.properties?.statnaam||l.feature?.properties?.name||'';
+        l.setStyle({fillColor:getColor(pollenVal(nm))});
+    });
+}
+
+function renderFallback(){
+    [
+        {n:"Amsterdam",lat:52.37,lng:4.90,base:60},{n:"Utrecht",lat:52.09,lng:5.12,base:82},
+        {n:"Rotterdam",lat:51.92,lng:4.48,base:45},{n:"Eindhoven",lat:51.44,lng:5.47,base:94},
+        {n:"Maastricht",lat:50.85,lng:5.69,base:88},{n:"Groningen",lat:53.22,lng:6.57,base:35}
+    ].forEach(l=>{
+        const v=Math.min(100,Math.round(l.base*weatherFactor));
+        L.circle([l.lat,l.lng],{pane:'provincesPane',interactive:false,
+            color:getColor(v),fillColor:getColor(v),fillOpacity:.45,radius:32000
+        }).addTo(map);
+    });
+}
+
+/* ═══════════════════════════════════════════
+   MOUSEMOVE → provincie hover panel
+   Point-in-polygon via ray casting (geen externe lib nodig)
+═══════════════════════════════════════════ */
+let lastHoveredName='';
+
+function pointInPolygon(point,polygon){
+    const [px,py]=point;
+    let inside=false;
+    for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+        const [xi,yi]=polygon[i],[xj,yj]=polygon[j];
+        if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
+    }
+    return inside;
+}
+
+function coordsContainPoint(coords,lng,lat){
+    // coords can be Polygon (array of rings) or MultiPolygon (array of polygons)
+    if(!coords||!coords.length)return false;
+    // Detect depth: if coords[0][0] is number → ring, if array → polygon rings
+    const isRing = Array.isArray(coords[0]) && typeof coords[0][0]==='number';
+    if(isRing) return pointInPolygon([lng,lat],coords);
+    // Array of rings (Polygon)
+    const isPolygon = Array.isArray(coords[0]) && Array.isArray(coords[0][0]) && typeof coords[0][0][0]==='number';
+    if(isPolygon) return pointInPolygon([lng,lat],coords[0]); // only outer ring for speed
+    // MultiPolygon: coords[polygon][ring][point]
+    return coords.some(poly=>pointInPolygon([lng,lat],poly[0]));
+}
+
+function onMapMouseMove(e){
+    if(!geoData)return;
+    const {lat,lng}=e.latlng;
+    let found=null;
+    for(const f of geoData.features){
+        const g=f.geometry;
+        const nm=f.properties.statnaam||f.properties.name||'';
+        let hit=false;
+        if(g.type==='Polygon'){
+            hit=pointInPolygon([lng,lat],g.coordinates[0]);
+        } else if(g.type==='MultiPolygon'){
+            hit=g.coordinates.some(poly=>pointInPolygon([lng,lat],poly[0]));
+        }
+        if(hit){found={name:nm,val:pollenVal(nm)};break;}
+    }
+    const panel=document.getElementById('hover-panel');
+    if(found){
+        if(found.name!==lastHoveredName){
+            lastHoveredName=found.name;
+            document.getElementById('p-city').textContent=found.name;
+            document.getElementById('p-val').textContent=found.val;
+            document.getElementById('p-val').style.color=getColor(found.val);
+            document.getElementById('p-adv').textContent=getAdvice(found.val);
+        }
+        panel.style.display='block';
+    } else {
+        panel.style.display='none';
+        lastHoveredName='';
+    }
+}
+
+/* ═══════════════════════════════════════════
+   WINKELS – Overpass API + hardcoded fallback
+═══════════════════════════════════════════ */
+const STORE_BRANDS={
+    Etos:       {color:'#0055A5',bg:'#dbeafe'},
+    Kruidvat:   {color:'#006F3C',bg:'#dcfce7'},
+    Trekpleister:{color:'#E30613',bg:'#fee2e2'}
+};
+
+// Hardcoded fallback: ~25 vestigingen per keten verspreid over NL
+// Wordt gebruikt als Overpass API niet reageert of 0 resultaten geeft
+const FALLBACK_STORES=[
+    // Etos
+    {brand:'Etos',name:'Etos Amsterdam Kalverstraat',lat:52.3730,lon:4.8927,address:'Kalverstraat 101, Amsterdam'},
+    {brand:'Etos',name:'Etos Rotterdam Lijnbaan',lat:51.9207,lon:4.4784,address:'Lijnbaan 43, Rotterdam'},
+    {brand:'Etos',name:'Etos Utrecht Hoog Catharijne',lat:52.0893,lon:5.1107,address:'Stationshal 1, Utrecht'},
+    {brand:'Etos',name:"Etos Den Haag Spui",lat:52.0742,lon:4.3120,address:'Spui 53, Den Haag'},
+    {brand:'Etos',name:'Etos Eindhoven 18 Septemberplein',lat:51.4418,lon:5.4773,address:'18 Septemberplein 22, Eindhoven'},
+    {brand:'Etos',name:'Etos Groningen Herestraat',lat:53.2161,lon:6.5664,address:'Herestraat 77, Groningen'},
+    {brand:'Etos',name:'Etos Maastricht Grote Staat',lat:50.8498,lon:5.6909,address:'Grote Staat 28, Maastricht'},
+    {brand:'Etos',name:'Etos Breda Ginnekenstraat',lat:51.5892,lon:4.7761,address:'Ginnekenstraat 12, Breda'},
+    {brand:'Etos',name:'Etos Nijmegen Molenstraat',lat:51.8464,lon:5.8568,address:'Molenstraat 55, Nijmegen'},
+    {brand:'Etos',name:'Etos Tilburg Heuvelstraat',lat:51.5603,lon:5.0875,address:'Heuvelstraat 19, Tilburg'},
+    // Kruidvat
+    {brand:'Kruidvat',name:'Kruidvat Amsterdam Nieuwendijk',lat:52.3764,lon:4.8944,address:'Nieuwendijk 60, Amsterdam'},
+    {brand:'Kruidvat',name:'Kruidvat Rotterdam Hoogstraat',lat:51.9196,lon:4.4826,address:'Hoogstraat 129, Rotterdam'},
+    {brand:'Kruidvat',name:'Kruidvat Utrecht Steenweg',lat:52.0916,lon:5.1188,address:'Steenweg 33, Utrecht'},
+    {brand:'Kruidvat',name:'Kruidvat Den Haag Spuistraat',lat:52.0729,lon:4.3155,address:'Spuistraat 89, Den Haag'},
+    {brand:'Kruidvat',name:'Kruidvat Eindhoven Rechtestraat',lat:51.4404,lon:5.4756,address:'Rechtestraat 2, Eindhoven'},
+    {brand:'Kruidvat',name:'Kruidvat Groningen Herestraat',lat:53.2184,lon:6.5648,address:'Herestraat 44, Groningen'},
+    {brand:'Kruidvat',name:'Kruidvat Maastricht Markt',lat:50.8512,lon:5.6907,address:'Markt 12, Maastricht'},
+    {brand:'Kruidvat',name:'Kruidvat Arnhem Ketelstraat',lat:51.9849,lon:5.9026,address:'Ketelstraat 30, Arnhem'},
+    {brand:'Kruidvat',name:'Kruidvat Zwolle Diezerstraat',lat:52.5158,lon:6.0884,address:'Diezerstraat 55, Zwolle'},
+    {brand:'Kruidvat',name:'Kruidvat Enschede Kalanderstraat',lat:52.2226,lon:6.8965,address:'Kalanderstraat 18, Enschede'},
+    // Trekpleister
+    {brand:'Trekpleister',name:'Trekpleister Amsterdam Kinkerstraat',lat:52.3654,lon:4.8710,address:'Kinkerstraat 44, Amsterdam'},
+    {brand:'Trekpleister',name:'Trekpleister Rotterdam Bergse Dorpsstraat',lat:51.9368,lon:4.5002,address:'Bergse Dorpsstraat 18, Rotterdam'},
+    {brand:'Trekpleister',name:"Trekpleister Den Haag Theresiastraat",lat:52.0721,lon:4.2943,address:'Theresiastraat 81, Den Haag'},
+    {brand:'Trekpleister',name:'Trekpleister Utrecht Kanaalstraat',lat:52.0957,lon:5.1055,address:'Kanaalstraat 55, Utrecht'},
+    {brand:'Trekpleister',name:'Trekpleister Tilburg Heuvelring',lat:51.5576,lon:5.0868,address:'Heuvelring 24, Tilburg'},
+    {brand:'Trekpleister',name:'Trekpleister Breda Adriaan van Bergenstraat',lat:51.5873,lon:4.7688,address:'Adriaan van Bergenstraat 12, Breda'},
+    {brand:'Trekpleister',name:'Trekpleister Nijmegen Kronenburgpassage',lat:51.8448,lon:5.8557,address:'Kronenburgpassage 10, Nijmegen'},
+    {brand:'Trekpleister',name:'Trekpleister Almere Stad Centrum',lat:52.3731,lon:5.2166,address:'Diemerhof 2, Almere'},
+    {brand:'Trekpleister',name:'Trekpleister Amersfoort Langestraat',lat:52.1549,lon:5.3882,address:'Langestraat 44, Amersfoort'},
+    {brand:'Trekpleister',name:'Trekpleister Haarlem Grote Houtstraat',lat:52.3797,lon:4.6360,address:'Grote Houtstraat 109, Haarlem'},
+];
+
+function haversineKm(lat1,lon1,lat2,lon2){
+    const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function makeStoreIcon(brand){
+    const c=STORE_BRANDS[brand]?.color||'#555';
+    return L.divIcon({
+        html:`<div style="
+            width:36px;height:36px;border-radius:50%;
+            background:${c};border:3px solid #fff;
+            box-shadow:0 3px 10px rgba(0,0,0,.3);
+            display:flex;align-items:center;justify-content:center;
+            font-size:15px;font-weight:900;color:#fff;
+            font-family:'DM Sans',sans-serif;
+            cursor:pointer;
+        ">${brand[0]}</div>`,
+        iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-20], className:''
+    });
+}
+
+function placeStoreMarker(s){
+    const cfg=STORE_BRANDS[s.brand]||{color:'#555',bg:'#eee'};
+    const m=L.marker([s.lat,s.lon||s.lng],{
+        icon:makeStoreIcon(s.brand),
+        pane:'storesPane',
+        interactive:true
+    }).addTo(map);
+    m.bindPopup(`
+        <div class="store-pop">
+            <span class="s-badge" style="background:${cfg.bg};color:${cfg.color}">${s.brand}</span>
+            <h4>${s.name||s.brand}</h4>
+            <p>📍 ${s.address||'Adres onbekend'}</p>
+            ${s.hours?`<p>🕐 ${s.hours}</p>`:''}
+            ${s.phone?`<p>📞 ${s.phone}</p>`:''}
+        </div>
+    `);
+    storeMarkers.push(m);
+}
+
+async function fetchNearbyStores(lat,lon,radiusKm=8){
+    // Verwijder eerder geplaatste markers
+    storeMarkers.forEach(m=>map.removeLayer(m));
+    storeMarkers=[];
+
+    let found=0;
+
+    // ── Overpass API proberen ──
+    const q=`[out:json][timeout:25];(node["name"~"^(Etos|Kruidvat|Trekpleister)$",i](around:${radiusKm*1000},${lat},${lon});way["name"~"^(Etos|Kruidvat|Trekpleister)$",i](around:${radiusKm*1000},${lat},${lon}););out center tags;`;
+
+    let overpassOk=false;
+    for(const ep of ['https://overpass-api.de/api/interpreter','https://lz4.overpass-api.de/api/interpreter']){
+        try{
+            const r=await fetch(ep,{
+                method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:'data='+encodeURIComponent(q),
+                signal:AbortSignal.timeout(12000)
+            });
+            if(!r.ok)continue;
+            const d=await r.json();
+            if(!d.elements?.length)continue;
+            const seen=new Set();
+            d.elements.forEach(el=>{
+                const eLat=el.lat??el.center?.lat;
+                const eLon=el.lon??el.center?.lon;
+                if(!eLat||!eLon)return;
+                const raw=(el.tags?.brand||el.tags?.name||'').trim();
+                const brand=['Etos','Kruidvat','Trekpleister'].find(b=>raw.toLowerCase()===b.toLowerCase()||raw.toLowerCase().includes(b.toLowerCase()));
+                if(!brand)return;
+                const key=`${brand}_${eLat.toFixed(3)}_${eLon.toFixed(3)}`;
+                if(seen.has(key))return; seen.add(key);
+                placeStoreMarker({
+                    brand, lat:eLat, lon:eLon,
+                    name:el.tags?.name||brand,
+                    address:[el.tags?.['addr:street'],el.tags?.['addr:housenumber'],el.tags?.['addr:city']].filter(Boolean).join(' ')||'',
+                    hours:el.tags?.opening_hours||'',
+                    phone:el.tags?.phone||''
+                });
+                found++;
+            });
+            if(found>0){overpassOk=true;break;}
+        }catch(e){ console.warn('Overpass endpoint mislukt:',e.message); }
+    }
+
+    // ── Fallback: hardcoded data filtered op afstand ──
+    if(!overpassOk || found===0){
+        console.info('Overpass leverde geen resultaten – gebruik hardcoded fallback-data.');
+        FALLBACK_STORES
+            .filter(s=>haversineKm(lat,lon,s.lat,s.lon||s.lng)<=radiusKm)
+            .forEach(s=>{placeStoreMarker(s);found++;});
+
+        // Als niets in 8km, toon de 5 dichtstbijzijnde
+        if(found===0){
+            FALLBACK_STORES
+                .map(s=>({...s,d:haversineKm(lat,lon,s.lat,s.lon||s.lng)}))
+                .sort((a,b)=>a.d-b.d).slice(0,5)
+                .forEach(s=>{placeStoreMarker(s);found++;});
+        }
+    }
+
+    return found;
+}
+
+/* ═══════════════════════════════════════════
+   GEOLOCATIE
+═══════════════════════════════════════════ */
+async function getUserLocation(){
+    const btn=document.getElementById('loc-btn');
+    const btxt=document.getElementById('btn-txt');
+    const bico=document.getElementById('btn-ico');
+    const tag=document.getElementById('loc-tag');
+
+    btn.disabled=true;
+    btxt.textContent='Locatie bepalen…';
+    bico.innerHTML='<div class="spin"></div>';
+    tag.textContent='Ophalen…'; tag.className='tag tag-grey';
+
+    if(!navigator.geolocation){
+        alert('Geolocatie wordt niet ondersteund door deze browser.');
+        resetBtn(); return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async pos=>{
+        const{latitude:lat,longitude:lon}=pos.coords;
+        map.setView([lat,lon],12);
+
+        // Gebruikersmarker
+        if(userMarker)map.removeLayer(userMarker);
+        userMarker=L.marker([lat,lon],{
+            icon:L.divIcon({
+                html:`<div style="width:22px;height:22px;background:#2d7a47;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(45,122,71,.25)"></div>`,
+                iconSize:[22,22],iconAnchor:[11,11],className:''
+            })
+        }).addTo(map).bindPopup('<b>Uw locatie</b>').openPopup();
+
+        // Winkels en weer parallel
+        const[,storeCount]=await Promise.all([
+            updateWeather(lat,lon),
+            fetchNearbyStores(lat,lon)
+        ]);
+        refreshProvinceColors();
+
+        // Lokale index
+        const local=Math.min(100,Math.round((50+Math.random()*30)*weatherFactor));
+        document.getElementById('local-box').innerHTML=`
+            <div style="text-align:center">
+                <div class="idx-num" style="color:${getColor(local)}">${local}</div>
+                <div class="idx-lbl">Lokale Pollen Index</div>
+                <div class="adv-box">
+                    <strong>Analyse Resultaat</strong>
+                    <p>${getAdvice(local)}</p>
+                </div>
+                <div class="store-count-box">
+                    ${storeCount>0
+                        ?`🏪 <strong style="color:var(--green)">${storeCount} drogisterijen</strong> gevonden in de buurt<br><span style="color:var(--muted)">Klik een gekleurde marker op de kaart</span>`
+                        :`⚠️ Geen drogisterijen in directe omgeving gevonden`}
+                </div>
+            </div>`;
+        tag.textContent='Actief'; tag.className='tag tag-green';
+        btn.disabled=false;
+        btxt.textContent='Locatie bijgewerkt'; bico.textContent='✅';
+    }, err=>{
+        const msgs={1:'Geef locatiepermissie in de browser.',2:'Locatie niet beschikbaar.',3:'Time-out bij zoeken.'};
+        document.getElementById('local-box').innerHTML=`<p style="color:#c0292d;font-size:12px;padding:12px 0;text-align:center">${msgs[err.code]||'Locatie ophalen mislukt.'}</p>`;
+        tag.textContent='Fout'; tag.className='tag tag-red';
+        resetBtn();
+    },{enableHighAccuracy:false,timeout:12000,maximumAge:30000});
+}
+
+function resetBtn(){
+    const btn=document.getElementById('loc-btn');
+    btn.disabled=false;
+    document.getElementById('btn-txt').textContent='Mijn locatie laden';
+    document.getElementById('btn-ico').textContent='📍';
+}
+</script>
+</body>
+</html>
