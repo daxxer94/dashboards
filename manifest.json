@@ -1,0 +1,15 @@
+{
+  "name": "Pollen Monitor Nederland",
+  "short_name": "Pollen NL",
+  "start_url": "/dashboards/",
+  "display": "standalone",
+  "background_color": "#f0f4f1",
+  "theme_color": "#2d7a47",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2821/2821803.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
