@@ -3,11 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Pollen NL">
+    
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2d7a47">
+    
     <title>Pollen Monitor Nederland</title>
+
+    <style>
+        /* This ensures the dashboard doesn't get cut off by the iPhone notch */
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            margin: 0;
+            background-color: #f0f4f1;
+        }
+    </style>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
 
     <!-- PWA manifest inline -->
     <script>
