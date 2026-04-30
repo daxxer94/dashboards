@@ -9,141 +9,62 @@
     <meta name="theme-color" content="#2d7a47">
     <title>Pollen Monitor Nederland</title>
 
-    <script>
-    const manifestData = {
-        name: "Pollen Monitor Nederland",
-        short_name: "Pollen NL",
-        description: "Realtime hooikoorts-analyse met drogisterij-locator",
-        start_url: ".",
-        display: "standalone",
-        background_color: "#f0f4f1",
-        theme_color: "#2d7a47",
-        orientation: "portrait-primary",
-        icons: [
-            { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%232d7a47'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E%F0%9F%8C%BF%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" }
-        ]
-    };
-    const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
-    const manifestURL = URL.createObjectURL(blob);
-    document.addEventListener('DOMContentLoaded', () => {
-        const link = document.createElement('link');
-        link.rel = 'manifest'; link.href = manifestURL;
-        document.head.appendChild(link);
-    });
-    </script>
-
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
-            --bg:      #f0f4f1;
-            --surf:    #ffffff;
-            --surf2:   #f7faf8;
-            --border:  #dde8e0;
-            --txt:     #1a2e20;
-            --muted:   #6b8572;
-            --green:   #2d7a47;
-            --glight:  #e8f5ed;
-            --r: 14px;
-            --sh: 0 2px 12px rgba(0,0,0,0.08);
+            --bg:#f0f4f1; --surf:#ffffff; --surf2:#f7faf8; --border:#dde8e0;
+            --txt:#1a2e20; --muted:#6b8572; --green:#2d7a47; --glight:#e8f5ed;
+            --r:14px; --sh:0 2px 12px rgba(0,0,0,0.08);
         }
         body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; }
 
-        .hdr {
-            background:var(--surf); border-bottom:1px solid var(--border);
-            padding:14px 24px; display:flex; align-items:center;
-            justify-content:space-between; gap:12px; flex-wrap:wrap;
-            box-shadow:var(--sh); position:relative; z-index:10;
-        }
+        .hdr { background:var(--surf); border-bottom:1px solid var(--border); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; box-shadow:var(--sh); position:relative; z-index:10; }
         .hdr-brand { display:flex; align-items:center; gap:12px; }
-        .hdr-icon {
-            width:40px; height:40px; border-radius:10px;
-            background:linear-gradient(135deg,#2d7a47,#5cb87a);
-            display:flex; align-items:center; justify-content:center; font-size:20px;
-        }
+        .hdr-icon { width:40px; height:40px; border-radius:10px; background:linear-gradient(135deg,#2d7a47,#5cb87a); display:flex; align-items:center; justify-content:center; font-size:20px; }
         .hdr-title { font-family:'DM Serif Display',serif; font-size:20px; line-height:1.1; }
         .hdr-sub   { font-size:11px; color:var(--muted); }
         .hdr-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-
-        .live-pill {
-            display:inline-flex; align-items:center; gap:5px;
-            background:var(--glight); color:var(--green);
-            font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px;
-        }
-        .live-pill::before {
-            content:''; width:6px; height:6px; border-radius:50%;
-            background:var(--green); animation:pulse 2s infinite;
-        }
+        .live-pill { display:inline-flex; align-items:center; gap:5px; background:var(--glight); color:var(--green); font-size:11px; font-weight:600; padding:4px 10px; border-radius:20px; }
+        .live-pill::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
         @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
-
-        .date-chip {
-            background:var(--surf2); border:1px solid var(--border);
-            padding:6px 14px; border-radius:8px; font-size:11px; color:var(--muted);
-        }
-        .loc-btn {
-            background:var(--green); color:#fff; border:none; cursor:pointer;
-            padding:9px 18px; border-radius:9px;
-            font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
-            display:flex; align-items:center; gap:7px; transition:all .2s;
-            box-shadow:0 2px 8px rgba(45,122,71,.3);
-        }
+        .date-chip { background:var(--surf2); border:1px solid var(--border); padding:6px 14px; border-radius:8px; font-size:11px; color:var(--muted); }
+        .loc-btn { background:var(--green); color:#fff; border:none; cursor:pointer; padding:9px 18px; border-radius:9px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; display:flex; align-items:center; gap:7px; transition:all .2s; box-shadow:0 2px 8px rgba(45,122,71,.3); }
         .loc-btn:hover { background:#236138; transform:translateY(-1px); }
         .loc-btn:disabled { opacity:.6; cursor:default; transform:none; }
 
-        .main {
-            display:grid; grid-template-columns:320px 1fr;
-            gap:16px; padding:16px 24px;
-            height:calc(100vh - 72px);
-        }
+        .main { display:grid; grid-template-columns:320px 1fr; gap:16px; padding:16px 24px; height:calc(100vh - 72px); }
         @media(max-width:900px){ .main{ grid-template-columns:1fr; height:auto; } }
 
         .sidebar { display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
         .sidebar::-webkit-scrollbar { width:3px; }
         .sidebar::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
 
-        .card {
-            background:var(--surf); border:1px solid var(--border);
-            border-radius:var(--r); padding:16px; box-shadow:var(--sh);
-        }
-        .card-h {
-            font-family:'DM Serif Display',serif; font-size:15px;
-            padding-bottom:10px; margin-bottom:12px;
-            border-bottom:1px solid var(--border);
-            display:flex; align-items:center; justify-content:space-between;
-        }
-        .tag {
-            font-family:'DM Sans',sans-serif; font-size:10px; font-weight:600;
-            text-transform:uppercase; letter-spacing:.04em;
-            padding:2px 8px; border-radius:20px;
-        }
-        .tag-green  { background:var(--glight); color:var(--green); }
-        .tag-grey   { background:#f1f5f9; color:#64748b; }
-        .tag-red    { background:#fef2f2; color:#c0292d; }
+        .card { background:var(--surf); border:1px solid var(--border); border-radius:var(--r); padding:16px; box-shadow:var(--sh); }
+        .card-h { font-family:'DM Serif Display',serif; font-size:15px; padding-bottom:10px; margin-bottom:12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+        .tag { font-family:'DM Sans',sans-serif; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:20px; }
+        .tag-green { background:var(--glight); color:var(--green); }
+        .tag-grey  { background:#f1f5f9; color:#64748b; }
+        .tag-red   { background:#fef2f2; color:#c0292d; }
+        .tag-blue  { background:#eff6ff; color:#1d4ed8; }
 
-        .w-row {
-            display:flex; align-items:center; justify-content:space-between;
-            padding:7px 0; border-bottom:1px solid var(--surf2);
-            font-size:13px;
-        }
+        .w-row { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--surf2); font-size:13px; }
         .w-row:last-child { border:none; }
         .w-lbl { color:var(--muted); display:flex; align-items:center; gap:6px; }
-        .w-val { font-weight:700; font-variant-numeric:tabular-nums; }
+        .w-val { font-weight:700; }
 
         .idx-num { font-family:'DM Serif Display',serif; font-size:58px; line-height:1; }
         .idx-lbl { font-size:10px; text-transform:uppercase; letter-spacing:.1em; font-weight:600; color:var(--muted); margin:2px 0 12px; }
-        .adv-box {
-            background:var(--surf2); border:1px solid var(--border);
-            border-radius:9px; padding:10px 12px;
-        }
+        .adv-box { background:var(--surf2); border:1px solid var(--border); border-radius:9px; padding:10px 12px; }
         .adv-box strong { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--green); display:block; margin-bottom:3px; }
         .adv-box p { font-size:12px; line-height:1.5; color:var(--muted); }
-        .store-count-box {
-            margin-top:10px; font-size:11px; line-height:1.6;
-            background:var(--surf2); border:1px solid var(--border);
-            border-radius:8px; padding:8px 10px; text-align:center;
-        }
+
+        .store-stat-row { display:flex; gap:8px; margin-bottom:10px; }
+        .store-stat { flex:1; text-align:center; background:var(--surf2); border:1px solid var(--border); border-radius:8px; padding:7px 4px; }
+        .store-stat .num { font-weight:700; font-size:18px; }
+        .store-stat .lbl { font-size:10px; color:var(--muted); margin-top:1px; }
 
         .leg-row { display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:6px; }
         .leg-sw  { width:24px; height:12px; border-radius:3px; flex-shrink:0; }
@@ -152,41 +73,27 @@
         .store-tag  { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
         .store-dot  { width:10px; height:10px; border-radius:50%; }
 
-        .tip {
-            display:flex; gap:10px; align-items:flex-start;
-            background:var(--surf2); border:1px solid var(--border);
-            border-radius:9px; padding:10px 11px; margin-bottom:8px;
-            transition:transform .15s;
-        }
+        .filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+        .filter-btn { flex:1; min-width:70px; padding:6px 8px; border-radius:8px; border:2px solid transparent; font-size:11px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .18s; text-align:center; }
+        .filter-btn.etos     { background:#dbeafe; color:#0055A5; border-color:#bfdbfe; }
+        .filter-btn.kruidvat { background:#dcfce7; color:#006F3C; border-color:#bbf7d0; }
+        .filter-btn.trek     { background:#fee2e2; color:#E30613; border-color:#fecaca; }
+        .filter-btn.inactive { opacity:.35; }
+        .filter-btn:hover    { transform:translateY(-1px); box-shadow:0 2px 6px rgba(0,0,0,.1); }
+
+        .tip { display:flex; gap:10px; align-items:flex-start; background:var(--surf2); border:1px solid var(--border); border-radius:9px; padding:10px 11px; margin-bottom:8px; transition:transform .15s; }
         .tip:last-child { margin-bottom:0; }
         .tip:hover { transform:translateX(2px); }
         .tip-ico { font-size:18px; width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#fff; border-radius:7px; box-shadow:var(--sh); }
         .tip-body strong { font-size:12px; font-weight:600; display:block; margin-bottom:2px; }
         .tip-body p { font-size:11px; color:var(--muted); line-height:1.5; }
 
-        .pwa-banner {
-            background:linear-gradient(135deg,#1a5c30,#2d7a47);
-            color:#fff; border-radius:var(--r); padding:14px 16px;
-            display:flex; gap:12px; align-items:center;
-        }
-        .pwa-ico { font-size:24px; flex-shrink:0; }
-        .pwa-text strong { font-size:13px; font-weight:600; display:block; margin-bottom:2px; }
-        .pwa-text p { font-size:11px; opacity:.85; line-height:1.5; }
-
-        .map-wrap {
-            position:relative; border-radius:var(--r); overflow:hidden;
-            box-shadow:0 4px 24px rgba(0,0,0,.12); height:100%; min-height:480px;
-        }
+        .map-wrap { position:relative; border-radius:var(--r); overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,.12); height:100%; min-height:480px; }
         #map { width:100%; height:100%; background:#e8f0eb; }
 
-        .map-panel {
-            position:absolute; bottom:16px; right:14px; z-index:1200;
-            background:rgba(255,255,255,.97); backdrop-filter:blur(12px);
-            border:1px solid var(--border); border-radius:12px;
-            padding:14px 16px; min-width:200px; max-width:260px;
-            box-shadow:0 4px 20px rgba(0,0,0,.12);
-            display:none; animation:slideUp .18s ease;
-        }
+        .map-loading { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:1300; background:rgba(255,255,255,.95); border:1px solid var(--border); border-radius:10px; padding:8px 16px; font-size:12px; font-weight:600; color:var(--green); display:flex; align-items:center; gap:8px; box-shadow:var(--sh); white-space:nowrap; }
+
+        .map-panel { position:absolute; bottom:16px; right:14px; z-index:1200; background:rgba(255,255,255,.97); backdrop-filter:blur(12px); border:1px solid var(--border); border-radius:12px; padding:14px 16px; min-width:200px; max-width:260px; box-shadow:0 4px 20px rgba(0,0,0,.12); display:none; animation:slideUp .18s ease; }
         @keyframes slideUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         .map-panel h3 { font-family:'DM Serif Display',serif; font-size:16px; margin-bottom:2px; }
         .map-panel .val { font-size:34px; font-weight:800; line-height:1; }
@@ -194,15 +101,26 @@
         .map-panel .adv { font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:8px; line-height:1.5; }
 
         .spin { border:2px solid rgba(255,255,255,.3); border-top:2px solid #fff; border-radius:50%; width:13px; height:13px; animation:rot .7s linear infinite; display:inline-block; }
+        .spin-g { border:2px solid var(--glight); border-top:2px solid var(--green); border-radius:50%; width:11px; height:11px; animation:rot .7s linear infinite; display:inline-block; }
         @keyframes rot { to{transform:rotate(360deg)} }
 
-        .pollen-tip { background:#fff!important; border:1px solid var(--border)!important; border-radius:8px!important; padding:6px 10px!important; font-family:'DM Sans',sans-serif!important; font-size:12px!important; box-shadow:0 2px 8px rgba(0,0,0,.1)!important; color:var(--txt)!important; }
-        .pollen-tip::before { display:none!important; }
-        .leaflet-popup-content-wrapper { border-radius:12px!important; font-family:'DM Sans',sans-serif!important; box-shadow:0 4px 20px rgba(0,0,0,.15)!important; }
-        .leaflet-popup-content { margin:12px 14px!important; }
-        .store-pop h4 { font-weight:700; font-size:13px; margin-bottom:4px; }
-        .store-pop p  { font-size:11px; color:#555; line-height:1.5; margin-bottom:2px; }
-        .s-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
+        /* Popup styles */
+        .leaflet-popup-content-wrapper { border-radius:14px!important; font-family:'DM Sans',sans-serif!important; box-shadow:0 6px 24px rgba(0,0,0,.18)!important; padding:0!important; overflow:hidden!important; border:none!important; }
+        .leaflet-popup-content { margin:0!important; width:auto!important; }
+        .leaflet-popup-tip-container { display:none; }
+        .store-pop { min-width:230px; max-width:280px; }
+        .pop-head { padding:12px 14px 10px; }
+        .pop-head h4 { font-weight:700; font-size:13px; margin:0; line-height:1.35; }
+        .pop-body { padding:6px 14px 10px; }
+        .pop-row { font-size:11px; color:#444; line-height:1.7; display:flex; gap:6px; }
+        .pop-row span { flex:1; }
+        .s-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
+        .dist-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; margin-left:5px; vertical-align:middle; }
+        .pop-footer { border-top:1px solid #f0f0f0; padding:8px 10px; display:flex; gap:7px; }
+        .pop-link { flex:1; text-align:center; text-decoration:none; font-size:11px; font-weight:700; padding:7px 5px; border-radius:8px; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:4px; }
+        .pop-link:hover { transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,.15); }
+        .pop-link-maps { background:#f1f5f9; color:#334155; }
+        .pop-link-shop { color:#fff; }
     </style>
 </head>
 <body>
@@ -212,7 +130,7 @@
         <div class="hdr-icon">🌿</div>
         <div>
             <div class="hdr-title">Pollen Monitor</div>
-            <div class="hdr-sub">Realtime hooikoorts-analyse voor Nederland</div>
+            <div class="hdr-sub">Realtime hooikoorts-analyse · heel Nederland</div>
         </div>
     </div>
     <div class="hdr-right">
@@ -228,6 +146,7 @@
 <div class="main">
     <aside class="sidebar">
 
+        <!-- Lokale index -->
         <div class="card">
             <div class="card-h">Lokale Index <span class="tag tag-grey" id="loc-tag">Stand-by</span></div>
             <div id="local-box">
@@ -237,6 +156,7 @@
             </div>
         </div>
 
+        <!-- Weerdata -->
         <div class="card">
             <div class="card-h">Weercondities <span class="tag tag-green">Open-Meteo</span></div>
             <div class="w-row"><span class="w-lbl">🌡️ Temperatuur</span><span class="w-val" id="v-temp">– °C</span></div>
@@ -244,36 +164,46 @@
             <div class="w-row"><span class="w-lbl">⚠️ Risico</span><span class="tag tag-grey" id="v-risk">Laden…</span></div>
         </div>
 
+        <!-- Winkelfilters -->
         <div class="card">
-            <div class="card-h">Legenda</div>
+            <div class="card-h">Drogisterijen <span class="tag tag-grey" id="store-count-tag"><span class="spin-g"></span></span></div>
+            <div id="store-stats">
+                <p style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px;">
+                    <span class="spin-g"></span> Winkels ophalen via OpenStreetMap…
+                </p>
+            </div>
+            <div class="filter-row">
+                <button class="filter-btn etos"     id="f-etos"     onclick="toggleFilter('Etos')">🔵 Etos</button>
+                <button class="filter-btn kruidvat" id="f-kruidvat" onclick="toggleFilter('Kruidvat')">🟢 Kruidvat</button>
+                <button class="filter-btn trek"     id="f-trek"     onclick="toggleFilter('Trekpleister')">🔴 Trek</button>
+            </div>
+            <div style="margin-top:10px">
+                <div class="store-tags">
+                    <div class="store-tag"><div class="store-dot" style="background:#0055A5"></div>Etos</div>
+                    <div class="store-tag"><div class="store-dot" style="background:#006F3C"></div>Kruidvat</div>
+                    <div class="store-tag"><div class="store-dot" style="background:#E30613"></div>Trekpleister</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legenda -->
+        <div class="card">
+            <div class="card-h">Pollen Legenda</div>
             <div class="leg-row"><div class="leg-sw" style="background:#10b981"></div><span>Laag (0–20) – Gunstig</span></div>
             <div class="leg-row"><div class="leg-sw" style="background:#a855f7"></div><span>Matig (21–40) – Let op</span></div>
             <div class="leg-row"><div class="leg-sw" style="background:#facc15"></div><span>Verhoogd (41–60) – Voorzichtig</span></div>
             <div class="leg-row"><div class="leg-sw" style="background:#f97316"></div><span>Hoog (61–80) – Risico</span></div>
             <div class="leg-row"><div class="leg-sw" style="background:#ef4444"></div><span>Kritiek (&gt;80) – Zeer hoog</span></div>
-            <hr class="leg-div">
-            <div class="store-tags">
-                <div class="store-tag"><div class="store-dot" style="background:#0055A5"></div>Etos</div>
-                <div class="store-tag"><div class="store-dot" style="background:#006F3C"></div>Kruidvat</div>
-                <div class="store-tag"><div class="store-dot" style="background:#E30613"></div>Trekpleister</div>
-            </div>
         </div>
 
-        <div class="pwa-banner" id="pwa-banner">
-            <div class="pwa-ico">📱</div>
-            <div class="pwa-text">
-                <strong>Installeer als app op iPhone</strong>
-                <p>Open in Safari → tik <strong>Deel</strong> (□↑) → kies <em>Zet op beginscherm</em>. De app werkt daarna offline.</p>
-            </div>
-        </div>
-
+        <!-- Tips -->
         <div class="card">
             <div class="card-h">Hooikoorts Tips</div>
             <div class="tip"><div class="tip-ico">💊</div><div class="tip-body"><strong>Antihistaminica</strong><p>Cetirizine of loratadine vrij verkrijgbaar. Neem 30 min voor blootstelling voor optimaal effect.</p></div></div>
             <div class="tip"><div class="tip-ico">👃</div><div class="tip-body"><strong>Neusspray</strong><p>Corticosteroïden (beclomethason) zijn het meest effectief. Dagelijks gebruik is essentieel.</p></div></div>
             <div class="tip"><div class="tip-ico">🚿</div><div class="tip-body"><strong>Haar wassen voor slapen</strong><p>Pollen hecht aan haar. Douchen voor bedtijd beperkt nachtelijke blootstelling sterk.</p></div></div>
-            <div class="tip"><div class="tip-ico">🪟</div><div class="tip-body"><strong>Ramen sluiten</strong><p>Pollen is hoogst tussen 05:00–10:00. Lucht 's avonds na regen als pollen laag is.</p></div></div>
-            <div class="tip"><div class="tip-ico">😎</div><div class="tip-body"><strong>Zonnebril dragen</strong><p>Een strakke bril reduceert blootstelling van de ogen aan pollen bij buitenactiviteiten.</p></div></div>
+            <div class="tip"><div class="tip-ico">🪟</div><div class="tip-body"><strong>Ramen sluiten</strong><p>Pollen is hoogst tussen 05:00–10:00. Lucht 's avonds na regen.</p></div></div>
+            <div class="tip"><div class="tip-ico">😎</div><div class="tip-body"><strong>Zonnebril dragen</strong><p>Een strakke bril reduceert blootstelling van ogen aan pollen bij buitenactiviteiten.</p></div></div>
             <div class="tip"><div class="tip-ico">🌊</div><div class="tip-body"><strong>Oogdruppels</strong><p>Natriumcromoglicaat stabiliseert mestcellen. Effectief bij tranende, jeukende ogen.</p></div></div>
             <div class="tip"><div class="tip-ico">🏠</div><div class="tip-body"><strong>HEPA-luchtreiniger</strong><p>Verwijdert 99,97% van pollendeeltjes. Zet in de slaapkamer voor het meeste effect.</p></div></div>
             <div class="tip"><div class="tip-ico">🩺</div><div class="tip-body"><strong>Immunotherapie</strong><p>Bij ernstige klachten: vraag huisarts naar SCIT/SLIT voor blijvende verbetering.</p></div></div>
@@ -283,6 +213,9 @@
 
     <div class="map-wrap">
         <div id="map"></div>
+        <div class="map-loading" id="map-loading">
+            <span class="spin-g"></span> <span id="loading-msg">Kaart laden…</span>
+        </div>
         <div class="map-panel" id="hover-panel">
             <h3 id="p-city">—</h3>
             <div class="val" id="p-val">–</div>
@@ -294,44 +227,190 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* ═══════════════════════════════════════════
-   CONSTANTEN & HELPERS
-═══════════════════════════════════════════ */
+/* ════════════════════════════════════════════════
+   CONFIGURATIE
+════════════════════════════════════════════════ */
+const BRAND_CFG = {
+    Etos:        { color:'#0055A5', bg:'#dbeafe', url:'https://www.etos.nl/zoeken/?q=hooikoorts' },
+    Kruidvat:    { color:'#006F3C', bg:'#dcfce7', url:'https://www.kruidvat.nl/search?q=hooikoorts' },
+    Trekpleister:{ color:'#E30613', bg:'#fee2e2', url:'https://www.trekpleister.nl/search?q=hooikoorts' }
+};
+
+const DEFAULT_HOURS = {
+    Etos:        'Ma–vr: 08:00–20:00 | Za: 08:00–18:00 | Zo: 11:00–18:00',
+    Kruidvat:    'Ma–vr: 08:30–18:00 | Za: 08:30–18:00 | Zo: 12:00–17:00',
+    Trekpleister:'Ma–vr: 09:00–18:00 | Za: 09:00–18:00 | Zo: 12:00–17:00'
+};
+
 const provinceBase = {
     "Groningen":35,"Friesland":38,"Drenthe":42,"Overijssel":68,
     "Flevoland":52,"Gelderland":75,"Utrecht":82,"Noord-Holland":60,
     "Zuid-Holland":55,"Zeeland":44,"Noord-Brabant":88,"Limburg":90
 };
 
-function getColor(d){
-    return d>80?'#ef4444':d>60?'#f97316':d>40?'#facc15':d>20?'#a855f7':'#10b981';
-}
+/* ════════════════════════════════════════════════
+   UITGEBREIDE FALLBACK ~120 vestigingen heel NL
+════════════════════════════════════════════════ */
+const FB = [
+    // ── ETOS ──
+    {b:'Etos',n:'Etos Heemskerk',              lat:52.5128,lon:4.6814,a:'Communicatielaan 8, Heemskerk'},
+    {b:'Etos',n:'Etos Beverwijk',              lat:52.4876,lon:4.6561,a:'Breestraat 14, Beverwijk'},
+    {b:'Etos',n:'Etos Castricum',              lat:52.5453,lon:4.6594,a:'Dorpsstraat 58, Castricum'},
+    {b:'Etos',n:'Etos IJmuiden',               lat:52.4636,lon:4.6153,a:'Plein 1945 12, IJmuiden'},
+    {b:'Etos',n:'Etos Alkmaar Langestraat',    lat:52.6306,lon:4.7477,a:'Langestraat 92, Alkmaar'},
+    {b:'Etos',n:'Etos Haarlem Grote Houtstraat',lat:52.3797,lon:4.6356,a:'Grote Houtstraat 68, Haarlem'},
+    {b:'Etos',n:'Etos Zaandam',                lat:52.4394,lon:4.8147,a:'Gedempte Gracht 62, Zaandam'},
+    {b:'Etos',n:'Etos Purmerend',              lat:52.5028,lon:4.9654,a:'Slotstraat 25, Purmerend'},
+    {b:'Etos',n:'Etos Amsterdam Kalverstraat', lat:52.3730,lon:4.8927,a:'Kalverstraat 101, Amsterdam'},
+    {b:'Etos',n:'Etos Amsterdam Buikslotermeer',lat:52.3985,lon:4.9340,a:'Buikslotermeerplein 38, Amsterdam'},
+    {b:'Etos',n:'Etos Amsterdam Osdorpplein',  lat:52.3619,lon:4.8031,a:'Osdorpplein 120, Amsterdam'},
+    {b:'Etos',n:'Etos Hilversum',              lat:52.2261,lon:5.1779,a:'Kerkstraat 18, Hilversum'},
+    {b:'Etos',n:'Etos Rotterdam Lijnbaan',     lat:51.9207,lon:4.4784,a:'Lijnbaan 43, Rotterdam'},
+    {b:'Etos',n:'Etos Rotterdam Zuidplein',    lat:51.8866,lon:4.4850,a:'Zuidplein 117, Rotterdam'},
+    {b:'Etos',n:'Etos Den Haag Spui',          lat:52.0742,lon:4.3120,a:'Spui 53, Den Haag'},
+    {b:'Etos',n:'Etos Den Haag Leyenburg',     lat:52.0458,lon:4.2890,a:'Leyweg 920, Den Haag'},
+    {b:'Etos',n:'Etos Delft',                  lat:51.9987,lon:4.3601,a:'Reinier de Graafweg 3, Delft'},
+    {b:'Etos',n:'Etos Leiden Haarlemmerstraat',lat:52.1601,lon:4.4973,a:'Haarlemmerstraat 115, Leiden'},
+    {b:'Etos',n:'Etos Dordrecht',              lat:51.8133,lon:4.6692,a:'Sarisgang 81, Dordrecht'},
+    {b:'Etos',n:'Etos Utrecht Hoog Catharijne',lat:52.0893,lon:5.1107,a:'Stationshal 1, Utrecht'},
+    {b:'Etos',n:'Etos Utrecht Overvecht',      lat:52.1199,lon:5.1181,a:'Zambesidreef 620, Utrecht'},
+    {b:'Etos',n:'Etos Amersfoort',             lat:52.1549,lon:5.3882,a:'Kouwenhovenstraat 10, Amersfoort'},
+    {b:'Etos',n:'Etos Nijmegen',               lat:51.8464,lon:5.8568,a:'Molenstraat 55, Nijmegen'},
+    {b:'Etos',n:'Etos Arnhem',                 lat:51.9849,lon:5.9026,a:'Ketelstraat 26, Arnhem'},
+    {b:'Etos',n:'Etos Apeldoorn',              lat:52.2089,lon:5.9693,a:'Hoofdstraat 84, Apeldoorn'},
+    {b:'Etos',n:'Etos Zwolle',                 lat:52.5158,lon:6.0884,a:'Diezerstraat 30, Zwolle'},
+    {b:'Etos',n:'Etos Enschede',               lat:52.2226,lon:6.8965,a:'Kalanderstraat 22, Enschede'},
+    {b:'Etos',n:'Etos Groningen Herestraat',   lat:53.2161,lon:6.5664,a:'Herestraat 77, Groningen'},
+    {b:'Etos',n:'Etos Leeuwarden',             lat:53.2014,lon:5.7882,a:'Nieuwburen 80, Leeuwarden'},
+    {b:'Etos',n:'Etos Assen',                  lat:52.9930,lon:6.5630,a:'Gedempte Singel 50, Assen'},
+    {b:'Etos',n:'Etos Eindhoven',              lat:51.4418,lon:5.4773,a:'18 Septemberplein 22, Eindhoven'},
+    {b:'Etos',n:'Etos Tilburg',                lat:51.5603,lon:5.0875,a:'Heuvelstraat 19, Tilburg'},
+    {b:'Etos',n:'Etos Breda',                  lat:51.5892,lon:4.7761,a:'Ginnekenstraat 12, Breda'},
+    {b:'Etos',n:"Etos 's-Hertogenbosch",       lat:51.6938,lon:5.3046,a:"Hinthamerstraat 60, 's-Hertogenbosch"},
+    {b:'Etos',n:'Etos Maastricht',             lat:50.8498,lon:5.6909,a:'Grote Staat 28, Maastricht'},
+    {b:'Etos',n:'Etos Middelburg',             lat:51.4989,lon:3.6136,a:'Lange Delft 58, Middelburg'},
+    {b:'Etos',n:'Etos Almere',                 lat:52.3731,lon:5.2166,a:'Diemerhof 14, Almere'},
+    // ── KRUIDVAT ──
+    {b:'Kruidvat',n:'Kruidvat Heemskerk',              lat:52.5115,lon:4.6820,a:'Communicatielaan 12, Heemskerk'},
+    {b:'Kruidvat',n:'Kruidvat Beverwijk',              lat:52.4884,lon:4.6548,a:'Breestraat 28, Beverwijk'},
+    {b:'Kruidvat',n:'Kruidvat Castricum',              lat:52.5447,lon:4.6601,a:'Dorpsstraat 72, Castricum'},
+    {b:'Kruidvat',n:'Kruidvat Velserbroek',            lat:52.4653,lon:4.6502,a:'Velserbroek 12, Velserbroek'},
+    {b:'Kruidvat',n:'Kruidvat Alkmaar Langestraat',    lat:52.6314,lon:4.7466,a:'Langestraat 55, Alkmaar'},
+    {b:'Kruidvat',n:'Kruidvat Alkmaar Overdie',        lat:52.6221,lon:4.7698,a:'Overdie 99, Alkmaar'},
+    {b:'Kruidvat',n:'Kruidvat Haarlem Grote Houtstraat',lat:52.3802,lon:4.6367,a:'Grote Houtstraat 44, Haarlem'},
+    {b:'Kruidvat',n:'Kruidvat Haarlem Schalkwijk',     lat:52.3609,lon:4.6731,a:'Schalkwijkcentrum 2, Haarlem'},
+    {b:'Kruidvat',n:'Kruidvat Zaandam',                lat:52.4387,lon:4.8138,a:'Koopmanstraat 2, Zaandam'},
+    {b:'Kruidvat',n:'Kruidvat Amsterdam Nieuwendijk',  lat:52.3764,lon:4.8944,a:'Nieuwendijk 60, Amsterdam'},
+    {b:'Kruidvat',n:'Kruidvat Amsterdam Gelderlandplein',lat:52.3390,lon:4.8744,a:'Gelderlandplein 60, Amsterdam'},
+    {b:'Kruidvat',n:'Kruidvat Amsterdam Noord',        lat:52.3980,lon:4.9265,a:'Purmerweg 80, Amsterdam-Noord'},
+    {b:'Kruidvat',n:'Kruidvat Purmerend',              lat:52.5033,lon:4.9663,a:'Slotstraat 18, Purmerend'},
+    {b:'Kruidvat',n:'Kruidvat Hilversum',              lat:52.2277,lon:5.1793,a:'Kerkbrink 11, Hilversum'},
+    {b:'Kruidvat',n:'Kruidvat Rotterdam Hoogstraat',   lat:51.9196,lon:4.4826,a:'Hoogstraat 129, Rotterdam'},
+    {b:'Kruidvat',n:'Kruidvat Rotterdam Zuidplein',    lat:51.8872,lon:4.4860,a:'Zuidplein 115, Rotterdam'},
+    {b:'Kruidvat',n:'Kruidvat Den Haag Spuistraat',    lat:52.0729,lon:4.3155,a:'Spuistraat 89, Den Haag'},
+    {b:'Kruidvat',n:'Kruidvat Den Haag Escamplaan',    lat:52.0563,lon:4.2652,a:'Escamplaan 901, Den Haag'},
+    {b:'Kruidvat',n:'Kruidvat Delft',                  lat:52.0087,lon:4.3922,a:'Phoenixstraat 8, Delft'},
+    {b:'Kruidvat',n:'Kruidvat Leiden',                 lat:52.1591,lon:4.4966,a:'Aalmarkt 14, Leiden'},
+    {b:'Kruidvat',n:'Kruidvat Dordrecht',              lat:51.8147,lon:4.6702,a:'Sarisgang 60, Dordrecht'},
+    {b:'Kruidvat',n:'Kruidvat Utrecht Steenweg',       lat:52.0916,lon:5.1188,a:'Steenweg 33, Utrecht'},
+    {b:'Kruidvat',n:'Kruidvat Utrecht Kanaleneiland',  lat:52.0668,lon:5.0983,a:'Doornveld 600, Utrecht'},
+    {b:'Kruidvat',n:'Kruidvat Amersfoort',             lat:52.1553,lon:5.3876,a:'Arnhemseweg 20, Amersfoort'},
+    {b:'Kruidvat',n:'Kruidvat Arnhem',                 lat:51.9849,lon:5.9026,a:'Ketelstraat 30, Arnhem'},
+    {b:'Kruidvat',n:'Kruidvat Nijmegen',               lat:51.8458,lon:5.8561,a:'Molenstraat 44, Nijmegen'},
+    {b:'Kruidvat',n:'Kruidvat Apeldoorn',              lat:52.2077,lon:5.9682,a:'Hoofdstraat 76, Apeldoorn'},
+    {b:'Kruidvat',n:'Kruidvat Zwolle',                 lat:52.5158,lon:6.0884,a:'Diezerstraat 55, Zwolle'},
+    {b:'Kruidvat',n:'Kruidvat Enschede',               lat:52.2226,lon:6.8965,a:'Kalanderstraat 18, Enschede'},
+    {b:'Kruidvat',n:'Kruidvat Groningen Herestraat',   lat:53.2184,lon:6.5648,a:'Herestraat 44, Groningen'},
+    {b:'Kruidvat',n:'Kruidvat Groningen Paddepoel',    lat:53.2330,lon:6.5420,a:'Paddepoel 100, Groningen'},
+    {b:'Kruidvat',n:'Kruidvat Leeuwarden',             lat:53.2012,lon:5.7878,a:'Wirdumerdijk 28, Leeuwarden'},
+    {b:'Kruidvat',n:'Kruidvat Assen',                  lat:52.9925,lon:6.5637,a:'Mercuriusplein 10, Assen'},
+    {b:'Kruidvat',n:'Kruidvat Eindhoven Woensel',      lat:51.4623,lon:5.4825,a:'Winkelcentrum Woensel 142, Eindhoven'},
+    {b:'Kruidvat',n:'Kruidvat Eindhoven Centrum',      lat:51.4404,lon:5.4756,a:'Rechtestraat 2, Eindhoven'},
+    {b:'Kruidvat',n:'Kruidvat Tilburg',                lat:51.5610,lon:5.0882,a:'Heuvelstraat 77, Tilburg'},
+    {b:'Kruidvat',n:'Kruidvat Breda',                  lat:51.5897,lon:4.7773,a:'Eindstraat 8, Breda'},
+    {b:'Kruidvat',n:"Kruidvat 's-Hertogenbosch",       lat:51.6946,lon:5.3037,a:"Hinthamerstraat 14, 's-Hertogenbosch"},
+    {b:'Kruidvat',n:'Kruidvat Maastricht',             lat:50.8512,lon:5.6907,a:'Markt 12, Maastricht'},
+    {b:'Kruidvat',n:'Kruidvat Middelburg',             lat:51.4993,lon:3.6143,a:'Lange Delft 26, Middelburg'},
+    {b:'Kruidvat',n:'Kruidvat Almere',                 lat:52.3735,lon:5.2178,a:'Diemerhof 4, Almere'},
+    // ── TREKPLEISTER ──
+    {b:'Trekpleister',n:'Trekpleister Heemskerk',         lat:52.5120,lon:4.6825,a:'Communicatielaan 4, Heemskerk'},
+    {b:'Trekpleister',n:'Trekpleister IJmuiden',          lat:52.4636,lon:4.6123,a:'Plein 1945 7, IJmuiden'},
+    {b:'Trekpleister',n:'Trekpleister Uitgeest',          lat:52.5330,lon:4.7064,a:'Geesterduin 14, Uitgeest'},
+    {b:'Trekpleister',n:'Trekpleister Alkmaar Noord',     lat:52.6443,lon:4.7518,a:'Overdie 55, Alkmaar'},
+    {b:'Trekpleister',n:'Trekpleister Haarlem Schalkwijk',lat:52.3609,lon:4.6736,a:'Schalkwijkcentrum 8, Haarlem'},
+    {b:'Trekpleister',n:'Trekpleister Amsterdam Kinkerstraat',lat:52.3654,lon:4.8710,a:'Kinkerstraat 44, Amsterdam'},
+    {b:'Trekpleister',n:'Trekpleister Amsterdam Bijlmer', lat:52.3127,lon:4.9425,a:'Anton de Komplein 15, Amsterdam'},
+    {b:'Trekpleister',n:'Trekpleister Zaandam',           lat:52.4401,lon:4.8163,a:'Gedempte Gracht 8, Zaandam'},
+    {b:'Trekpleister',n:'Trekpleister Purmerend',         lat:52.5024,lon:4.9671,a:'Slotstraat 8, Purmerend'},
+    {b:'Trekpleister',n:'Trekpleister Hilversum',         lat:52.2263,lon:5.1790,a:'Kerkbrink 20, Hilversum'},
+    {b:'Trekpleister',n:'Trekpleister Rotterdam Bergse',  lat:51.9368,lon:4.5002,a:'Bergse Dorpsstraat 18, Rotterdam'},
+    {b:'Trekpleister',n:'Trekpleister Rotterdam Zuidplein',lat:51.8875,lon:4.4868,a:'Zuidplein 201, Rotterdam'},
+    {b:'Trekpleister',n:'Trekpleister Den Haag Theresiastraat',lat:52.0721,lon:4.2943,a:'Theresiastraat 81, Den Haag'},
+    {b:'Trekpleister',n:'Trekpleister Den Haag Loosduinen',lat:52.0514,lon:4.2696,a:'Loosduinse Hoofdstraat 102, Den Haag'},
+    {b:'Trekpleister',n:'Trekpleister Delft',             lat:51.9991,lon:4.3608,a:'Reinier de Graafweg 7, Delft'},
+    {b:'Trekpleister',n:'Trekpleister Leiden',            lat:52.1606,lon:4.5090,a:'Winkelhof 100, Leiden'},
+    {b:'Trekpleister',n:'Trekpleister Dordrecht',         lat:51.8140,lon:4.6710,a:'Sarisgang 30, Dordrecht'},
+    {b:'Trekpleister',n:'Trekpleister Utrecht Kanaalstraat',lat:52.0957,lon:5.1055,a:'Kanaalstraat 55, Utrecht'},
+    {b:'Trekpleister',n:'Trekpleister Utrecht Overvecht', lat:52.1202,lon:5.1174,a:'Zambesidreef 500, Utrecht'},
+    {b:'Trekpleister',n:'Trekpleister Amersfoort',        lat:52.1549,lon:5.3882,a:'Langestraat 44, Amersfoort'},
+    {b:'Trekpleister',n:'Trekpleister Arnhem',            lat:51.9761,lon:5.9307,a:'Presikhaafcentrum 24, Arnhem'},
+    {b:'Trekpleister',n:'Trekpleister Nijmegen',          lat:51.8448,lon:5.8557,a:'Kronenburgpassage 10, Nijmegen'},
+    {b:'Trekpleister',n:'Trekpleister Apeldoorn',         lat:52.1987,lon:5.9845,a:'Anklaar 2, Apeldoorn'},
+    {b:'Trekpleister',n:'Trekpleister Zwolle',            lat:52.5327,lon:6.0408,a:'Stadshagenallee 30, Zwolle'},
+    {b:'Trekpleister',n:'Trekpleister Enschede',          lat:52.2197,lon:6.8909,a:'Muziekplein 80, Enschede'},
+    {b:'Trekpleister',n:'Trekpleister Groningen',         lat:53.2319,lon:6.5429,a:'Paddepoel 200, Groningen'},
+    {b:'Trekpleister',n:'Trekpleister Leeuwarden',        lat:53.2042,lon:5.7946,a:'Wiardaplein 25, Leeuwarden'},
+    {b:'Trekpleister',n:'Trekpleister Assen',             lat:52.9946,lon:6.5666,a:'Noordersingel 48, Assen'},
+    {b:'Trekpleister',n:'Trekpleister Eindhoven Woensel', lat:51.4612,lon:5.4818,a:'Winkelcentrum Woensel 80, Eindhoven'},
+    {b:'Trekpleister',n:'Trekpleister Tilburg',           lat:51.5576,lon:5.0868,a:'Heuvelring 24, Tilburg'},
+    {b:'Trekpleister',n:'Trekpleister Breda',             lat:51.5873,lon:4.7688,a:'Adriaan van Bergenstraat 12, Breda'},
+    {b:'Trekpleister',n:"Trekpleister 's-Hertogenbosch",  lat:51.6942,lon:5.3055,a:"Hinthamerstraat 80, 's-Hertogenbosch"},
+    {b:'Trekpleister',n:'Trekpleister Maastricht',        lat:50.8527,lon:5.6913,a:'Mosae Forum 40, Maastricht'},
+    {b:'Trekpleister',n:'Trekpleister Middelburg',        lat:51.5002,lon:3.6162,a:'Kanaalstraat 2, Middelburg'},
+    {b:'Trekpleister',n:'Trekpleister Almere',            lat:52.3731,lon:5.2166,a:'Diemerhof 2, Almere'},
+];
+
+/* ════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════ */
+function getColor(d){ return d>80?'#ef4444':d>60?'#f97316':d>40?'#facc15':d>20?'#a855f7':'#10b981'; }
 function getAdvice(d){
     if(d>80) return "Dringend: Ramen dicht, neem medicatie, beperk buitenactiviteiten.";
-    if(d>60) return "Hoog risico: Gebruik antihistaminica preventief. Haar wassen voor slapen.";
+    if(d>60) return "Hoog risico: Gebruik antihistaminica preventief.";
     if(d>40) return "Matig: Vermijd parken en gemaaide velden. Draag zonnebril.";
     if(d>20) return "Licht verhoogd: Gevoelige personen kunnen klachten ervaren.";
     return "Gunstig: Goed moment voor buiten zijn. Geniet ervan!";
 }
+function hkm(la1,lo1,la2,lo2){
+    const R=6371,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;
+    const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function distLabel(km){ return km<1?`${Math.round(km*1000)} m`:`${km.toFixed(1)} km`; }
+function fwt(url,opts={},ms=15000){
+    const c=new AbortController(), t=setTimeout(()=>c.abort(),ms);
+    return fetch(url,{...opts,signal:c.signal}).finally(()=>clearTimeout(t));
+}
 
-/* ═══════════════════════════════════════════
-   KAART INIT
-═══════════════════════════════════════════ */
-let map, geoLayer, userMarker, storeMarkers=[], weatherFactor=1.0, geoData=null;
+/* ════════════════════════════════════════════════
+   STAAT
+════════════════════════════════════════════════ */
+let map, geoLayer, userMarker, geoData=null, weatherFactor=1.0;
+let allStores=[], storeMarkers=[], activeFilters=new Set(['Etos','Kruidvat','Trekpleister']);
+let userLat=null, userLon=null;
 
+/* ════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('cur-date').textContent =
         new Intl.DateTimeFormat('nl-NL',{dateStyle:'full'}).format(new Date());
-
-    if(!/iphone|ipad|android/i.test(navigator.userAgent))
-        document.getElementById('pwa-banner').style.display='none';
 
     map = L.map('map',{zoomControl:true}).setView([52.2,5.3],7);
 
     map.createPane('provincesPane');
     map.getPane('provincesPane').style.zIndex = '200';
     map.getPane('provincesPane').style.pointerEvents = 'none';
-
     map.createPane('storesPane');
     map.getPane('storesPane').style.zIndex = '650';
     map.getPane('storesPane').style.pointerEvents = 'auto';
@@ -340,23 +419,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         attribution:'© OpenStreetMap © CARTO', maxZoom:19
     }).addTo(map);
 
-    await updateWeather();
-    await loadProvinces();
+    setLoading('Provinciekaart laden…');
+    await Promise.all([updateWeather(), loadProvinces()]);
+    setLoading('Drogisterijen ophalen…');
+    await loadAllStores();
+    hideLoading();
 
     map.on('mousemove', onMapMouseMove);
-    map.on('mouseout',  ()=>{ document.getElementById('hover-panel').style.display='none'; });
-
+    map.on('mouseout', ()=>{ document.getElementById('hover-panel').style.display='none'; });
     setTimeout(()=>map.invalidateSize(),400);
 });
 
-/* ═══════════════════════════════════════════
+function setLoading(msg){ document.getElementById('loading-msg').textContent=msg; document.getElementById('map-loading').style.display='flex'; }
+function hideLoading(){ document.getElementById('map-loading').style.display='none'; }
+
+/* ════════════════════════════════════════════════
    WEER
-═══════════════════════════════════════════ */
+════════════════════════════════════════════════ */
 async function updateWeather(lat=52.13,lon=5.29){
     try{
-        const r=await fetchWithTimeout(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`,{},8000);
+        const r=await fwt(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`,{},8000);
         const d=await r.json();
-        const {temperature:t,windspeed:w}=d.current_weather;
+        const{temperature:t,windspeed:w}=d.current_weather;
         document.getElementById('v-temp').textContent=`${t} °C`;
         document.getElementById('v-wind').textContent=`${w} km/h`;
         weatherFactor=(t>20?1.2:1.0)*(w>15?1.15:1.0);
@@ -364,424 +448,250 @@ async function updateWeather(lat=52.13,lon=5.29){
         const rv=document.getElementById('v-risk');
         rv.textContent=avg>70?'KRITIEK':'NORMAAL';
         rv.className=avg>70?'tag tag-red':'tag tag-green';
-    }catch(e){
-        console.warn('Weer ophalen mislukt:',e.message);
-        weatherFactor=1.0;
-    }
+    }catch{ weatherFactor=1.0; }
 }
 
-/* ═══════════════════════════════════════════
-   FETCH MET TIMEOUT (cross-browser)
-   Vervangt AbortSignal.timeout() dat niet
-   in alle browsers beschikbaar is.
-═══════════════════════════════════════════ */
-function fetchWithTimeout(url, options={}, ms=12000){
-    const controller = new AbortController();
-    const timer = setTimeout(()=>controller.abort(), ms);
-    return fetch(url, {...options, signal:controller.signal})
-        .finally(()=>clearTimeout(timer));
-}
-
-/* ═══════════════════════════════════════════
-   PROVINCIEKAART
-═══════════════════════════════════════════ */
-const GEOJSON_URLS=[
-    'https://cartomap.github.io/nl/wgs84/provincie_2023.geojson',
-    'https://raw.githubusercontent.com/cartomap/nl/master/wgs84/provincie_2023.geojson'
-];
-
+/* ════════════════════════════════════════════════
+   PROVINCIES
+════════════════════════════════════════════════ */
 async function loadProvinces(){
-    for(const url of GEOJSON_URLS){
-        try{
-            const r=await fetchWithTimeout(url,{},10000);
-            if(!r.ok)continue;
-            geoData=await r.json();
-            renderProvinces();
-            return;
-        }catch(e){ console.warn('GeoJSON endpoint mislukt:',e.message); }
+    for(const u of['https://cartomap.github.io/nl/wgs84/provincie_2023.geojson','https://raw.githubusercontent.com/cartomap/nl/master/wgs84/provincie_2023.geojson']){
+        try{ const r=await fwt(u,{},10000); if(!r.ok)continue; geoData=await r.json(); renderProvinces(); return; }catch{}
     }
-    console.warn('GeoJSON niet beschikbaar – fallback cirkels.');
     renderFallback();
 }
-
-function pollenVal(provinceName){
-    const base=provinceBase[provinceName]||55;
-    return Math.min(100,Math.round(base*weatherFactor));
-}
-
+function pv(nm){ return Math.min(100,Math.round((provinceBase[nm]||55)*weatherFactor)); }
 function renderProvinces(){
     if(geoLayer)map.removeLayer(geoLayer);
-    geoLayer=L.geoJSON(geoData,{
-        pane:'provincesPane',
-        interactive:false,
-        style:f=>{
-            const nm=f.properties.statnaam||f.properties.name||'';
-            return {
-                fillColor:getColor(pollenVal(nm)),
-                fillOpacity:0.55,
-                color:'rgba(255,255,255,0.8)',
-                weight:1.5
-            };
-        }
-    }).addTo(map);
+    geoLayer=L.geoJSON(geoData,{pane:'provincesPane',interactive:false,style:f=>{
+        const nm=f.properties.statnaam||f.properties.name||'';
+        return{fillColor:getColor(pv(nm)),fillOpacity:0.55,color:'rgba(255,255,255,0.8)',weight:1.5};
+    }}).addTo(map);
 }
-
-function refreshProvinceColors(){
-    if(!geoLayer)return;
-    geoLayer.eachLayer(l=>{
-        const nm=l.feature?.properties?.statnaam||l.feature?.properties?.name||'';
-        l.setStyle({fillColor:getColor(pollenVal(nm))});
-    });
-}
-
+function refreshProvinceColors(){ if(!geoLayer)return; geoLayer.eachLayer(l=>{ const nm=l.feature?.properties?.statnaam||l.feature?.properties?.name||''; l.setStyle({fillColor:getColor(pv(nm))}); }); }
 function renderFallback(){
-    [
-        {n:"Amsterdam",lat:52.37,lng:4.90,base:60},{n:"Utrecht",lat:52.09,lng:5.12,base:82},
-        {n:"Rotterdam",lat:51.92,lng:4.48,base:45},{n:"Eindhoven",lat:51.44,lng:5.47,base:94},
-        {n:"Maastricht",lat:50.85,lng:5.69,base:88},{n:"Groningen",lat:53.22,lng:6.57,base:35}
-    ].forEach(l=>{
-        const v=Math.min(100,Math.round(l.base*weatherFactor));
-        L.circle([l.lat,l.lng],{pane:'provincesPane',interactive:false,
-            color:getColor(v),fillColor:getColor(v),fillOpacity:.45,radius:32000
-        }).addTo(map);
+    [{lat:52.37,lng:4.90,b:60},{lat:52.09,lng:5.12,b:82},{lat:51.92,lng:4.48,b:45}].forEach(l=>{
+        L.circle([l.lat,l.lng],{pane:'provincesPane',interactive:false,color:getColor(Math.min(100,Math.round(l.b*weatherFactor))),fillOpacity:.45,radius:32000}).addTo(map);
     });
 }
 
-/* ═══════════════════════════════════════════
-   MOUSEMOVE → provincie hover panel
-═══════════════════════════════════════════ */
-let lastHoveredName='';
-
-function pointInPolygon(point,polygon){
-    const [px,py]=point;
-    let inside=false;
-    for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
-        const [xi,yi]=polygon[i],[xj,yj]=polygon[j];
-        if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))inside=!inside;
-    }
-    return inside;
-}
-
+/* ════════════════════════════════════════════════
+   HOVER PANEL
+════════════════════════════════════════════════ */
+let lastHov='';
+function pip(pt,poly){ const[px,py]=pt;let i2=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))i2=!i2;}return i2; }
 function onMapMouseMove(e){
     if(!geoData)return;
-    const {lat,lng}=e.latlng;
-    let found=null;
+    const{lat,lng}=e.latlng; let found=null;
     for(const f of geoData.features){
-        const g=f.geometry;
-        const nm=f.properties.statnaam||f.properties.name||'';
-        let hit=false;
-        if(g.type==='Polygon'){
-            hit=pointInPolygon([lng,lat],g.coordinates[0]);
-        } else if(g.type==='MultiPolygon'){
-            hit=g.coordinates.some(poly=>pointInPolygon([lng,lat],poly[0]));
-        }
-        if(hit){found={name:nm,val:pollenVal(nm)};break;}
+        const g=f.geometry, nm=f.properties.statnaam||f.properties.name||'';
+        let hit=g.type==='Polygon'?pip([lng,lat],g.coordinates[0]):g.type==='MultiPolygon'?g.coordinates.some(p=>pip([lng,lat],p[0])):false;
+        if(hit){found={name:nm,val:pv(nm)};break;}
     }
     const panel=document.getElementById('hover-panel');
     if(found){
-        if(found.name!==lastHoveredName){
-            lastHoveredName=found.name;
+        if(found.name!==lastHov){
+            lastHov=found.name;
             document.getElementById('p-city').textContent=found.name;
             document.getElementById('p-val').textContent=found.val;
             document.getElementById('p-val').style.color=getColor(found.val);
             document.getElementById('p-adv').textContent=getAdvice(found.val);
         }
         panel.style.display='block';
-    } else {
-        panel.style.display='none';
-        lastHoveredName='';
-    }
+    } else { panel.style.display='none'; lastHov=''; }
 }
 
-/* ═══════════════════════════════════════════
-   WINKELS – Overpass API + uitgebreide fallback
-═══════════════════════════════════════════ */
-const STORE_BRANDS={
-    Etos:        {color:'#0055A5',bg:'#dbeafe'},
-    Kruidvat:    {color:'#006F3C',bg:'#dcfce7'},
-    Trekpleister:{color:'#E30613',bg:'#fee2e2'}
-};
-
-/* ── Uitgebreide fallback – landelijk verspreid incl. Noord-Holland ── */
-const FALLBACK_STORES=[
-    // ── Etos ──
-    {brand:'Etos',name:'Etos Heemskerk',            lat:52.5128,lon:4.6814,address:'Communicatielaan 8, Heemskerk'},
-    {brand:'Etos',name:'Etos Beverwijk',             lat:52.4876,lon:4.6561,address:'Breestraat 14, Beverwijk'},
-    {brand:'Etos',name:'Etos Castricum',             lat:52.5453,lon:4.6594,address:'Dorpsstraat 58, Castricum'},
-    {brand:'Etos',name:'Etos Alkmaar Langestraat',   lat:52.6306,lon:4.7477,address:'Langestraat 92, Alkmaar'},
-    {brand:'Etos',name:'Etos Haarlem Grote Houtstraat',lat:52.3797,lon:4.6356,address:'Grote Houtstraat 68, Haarlem'},
-    {brand:'Etos',name:'Etos Amsterdam Kalverstraat',lat:52.3730,lon:4.8927,address:'Kalverstraat 101, Amsterdam'},
-    {brand:'Etos',name:'Etos Rotterdam Lijnbaan',    lat:51.9207,lon:4.4784,address:'Lijnbaan 43, Rotterdam'},
-    {brand:'Etos',name:'Etos Utrecht Hoog Catharijne',lat:52.0893,lon:5.1107,address:'Stationshal 1, Utrecht'},
-    {brand:'Etos',name:'Etos Den Haag Spui',         lat:52.0742,lon:4.3120,address:'Spui 53, Den Haag'},
-    {brand:'Etos',name:'Etos Eindhoven 18 Septemberplein',lat:51.4418,lon:5.4773,address:'18 Septemberplein 22, Eindhoven'},
-    {brand:'Etos',name:'Etos Groningen Herestraat',  lat:53.2161,lon:6.5664,address:'Herestraat 77, Groningen'},
-    {brand:'Etos',name:'Etos Maastricht Grote Staat',lat:50.8498,lon:5.6909,address:'Grote Staat 28, Maastricht'},
-    {brand:'Etos',name:'Etos Breda Ginnekenstraat',  lat:51.5892,lon:4.7761,address:'Ginnekenstraat 12, Breda'},
-    {brand:'Etos',name:'Etos Nijmegen Molenstraat',  lat:51.8464,lon:5.8568,address:'Molenstraat 55, Nijmegen'},
-    {brand:'Etos',name:'Etos Tilburg Heuvelstraat',  lat:51.5603,lon:5.0875,address:'Heuvelstraat 19, Tilburg'},
-    {brand:'Etos',name:'Etos Zaandam Gedempte Gracht',lat:52.4394,lon:4.8147,address:'Gedempte Gracht 62, Zaandam'},
-    {brand:'Etos',name:'Etos Purmerend Slotstraat',  lat:52.5028,lon:4.9654,address:'Slotstraat 25, Purmerend'},
-    // ── Kruidvat ──
-    {brand:'Kruidvat',name:'Kruidvat Heemskerk',          lat:52.5115,lon:4.6820,address:'Communicatielaan 12, Heemskerk'},
-    {brand:'Kruidvat',name:'Kruidvat Beverwijk',           lat:52.4884,lon:4.6548,address:'Breestraat 28, Beverwijk'},
-    {brand:'Kruidvat',name:'Kruidvat Castricum',           lat:52.5447,lon:4.6601,address:'Dorpsstraat 72, Castricum'},
-    {brand:'Kruidvat',name:'Kruidvat Alkmaar Langestraat', lat:52.6314,lon:4.7466,address:'Langestraat 55, Alkmaar'},
-    {brand:'Kruidvat',name:'Kruidvat Haarlem Grote Houtstraat',lat:52.3802,lon:4.6367,address:'Grote Houtstraat 44, Haarlem'},
-    {brand:'Kruidvat',name:'Kruidvat Amsterdam Nieuwendijk',lat:52.3764,lon:4.8944,address:'Nieuwendijk 60, Amsterdam'},
-    {brand:'Kruidvat',name:'Kruidvat Rotterdam Hoogstraat',lat:51.9196,lon:4.4826,address:'Hoogstraat 129, Rotterdam'},
-    {brand:'Kruidvat',name:'Kruidvat Utrecht Steenweg',    lat:52.0916,lon:5.1188,address:'Steenweg 33, Utrecht'},
-    {brand:'Kruidvat',name:'Kruidvat Den Haag Spuistraat', lat:52.0729,lon:4.3155,address:'Spuistraat 89, Den Haag'},
-    {brand:'Kruidvat',name:'Kruidvat Eindhoven Rechtestraat',lat:51.4404,lon:5.4756,address:'Rechtestraat 2, Eindhoven'},
-    {brand:'Kruidvat',name:'Kruidvat Groningen Herestraat',lat:53.2184,lon:6.5648,address:'Herestraat 44, Groningen'},
-    {brand:'Kruidvat',name:'Kruidvat Maastricht Markt',    lat:50.8512,lon:5.6907,address:'Markt 12, Maastricht'},
-    {brand:'Kruidvat',name:'Kruidvat Arnhem Ketelstraat',  lat:51.9849,lon:5.9026,address:'Ketelstraat 30, Arnhem'},
-    {brand:'Kruidvat',name:'Kruidvat Zwolle Diezerstraat', lat:52.5158,lon:6.0884,address:'Diezerstraat 55, Zwolle'},
-    {brand:'Kruidvat',name:'Kruidvat Enschede Kalanderstraat',lat:52.2226,lon:6.8965,address:'Kalanderstraat 18, Enschede'},
-    {brand:'Kruidvat',name:'Kruidvat Zaandam',             lat:52.4387,lon:4.8138,address:'Koopmanstraat 2, Zaandam'},
-    {brand:'Kruidvat',name:'Kruidvat Velserbroek',         lat:52.4653,lon:4.6502,address:'Velserbroek 12, Velserbroek'},
-    // ── Trekpleister ──
-    {brand:'Trekpleister',name:'Trekpleister Heemskerk',         lat:52.5120,lon:4.6825,address:'Communicatielaan 4, Heemskerk'},
-    {brand:'Trekpleister',name:'Trekpleister IJmuiden',          lat:52.4636,lon:4.6123,address:'Plein 1945 nr.7, IJmuiden'},
-    {brand:'Trekpleister',name:'Trekpleister Uitgeest',          lat:52.5330,lon:4.7064,address:'Geesterduin 14, Uitgeest'},
-    {brand:'Trekpleister',name:'Trekpleister Alkmaar Noord',     lat:52.6443,lon:4.7518,address:'Overdie 55, Alkmaar'},
-    {brand:'Trekpleister',name:'Trekpleister Haarlem Schalkwijk',lat:52.3609,lon:4.6731,address:'Schalkwijkcentrum 8, Haarlem'},
-    {brand:'Trekpleister',name:'Trekpleister Amsterdam Kinkerstraat',lat:52.3654,lon:4.8710,address:'Kinkerstraat 44, Amsterdam'},
-    {brand:'Trekpleister',name:'Trekpleister Rotterdam Bergse Dorpsstraat',lat:51.9368,lon:4.5002,address:'Bergse Dorpsstraat 18, Rotterdam'},
-    {brand:'Trekpleister',name:'Trekpleister Den Haag Theresiastraat',lat:52.0721,lon:4.2943,address:'Theresiastraat 81, Den Haag'},
-    {brand:'Trekpleister',name:'Trekpleister Utrecht Kanaalstraat',lat:52.0957,lon:5.1055,address:'Kanaalstraat 55, Utrecht'},
-    {brand:'Trekpleister',name:'Trekpleister Tilburg Heuvelring', lat:51.5576,lon:5.0868,address:'Heuvelring 24, Tilburg'},
-    {brand:'Trekpleister',name:'Trekpleister Breda Adriaan v.Bergenstraat',lat:51.5873,lon:4.7688,address:'Adriaan van Bergenstraat 12, Breda'},
-    {brand:'Trekpleister',name:'Trekpleister Nijmegen Kronenburgpassage',lat:51.8448,lon:5.8557,address:'Kronenburgpassage 10, Nijmegen'},
-    {brand:'Trekpleister',name:'Trekpleister Almere Centrum',    lat:52.3731,lon:5.2166,address:'Diemerhof 2, Almere'},
-    {brand:'Trekpleister',name:'Trekpleister Amersfoort Langestraat',lat:52.1549,lon:5.3882,address:'Langestraat 44, Amersfoort'},
-];
-
-function haversineKm(lat1,lon1,lat2,lon2){
-    const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
-    const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-}
-
-function makeStoreIcon(brand){
-    const c=STORE_BRANDS[brand]?.color||'#555';
-    return L.divIcon({
-        html:`<div style="
-            width:36px;height:36px;border-radius:50%;
-            background:${c};border:3px solid #fff;
-            box-shadow:0 3px 10px rgba(0,0,0,.3);
-            display:flex;align-items:center;justify-content:center;
-            font-size:15px;font-weight:900;color:#fff;
-            font-family:'DM Sans',sans-serif;
-            cursor:pointer;
-        ">${brand[0]}</div>`,
-        iconSize:[36,36], iconAnchor:[18,18], popupAnchor:[0,-20], className:''
-    });
-}
-
-function placeStoreMarker(s){
-    const cfg=STORE_BRANDS[s.brand]||{color:'#555',bg:'#eee'};
-    const m=L.marker([s.lat,s.lon??s.lng],{
-        icon:makeStoreIcon(s.brand),
-        pane:'storesPane',
-        interactive:true
-    }).addTo(map);
-    m.bindPopup(`
-        <div class="store-pop">
-            <span class="s-badge" style="background:${cfg.bg};color:${cfg.color}">${s.brand}</span>
-            <h4>${s.name||s.brand}</h4>
-            <p>📍 ${s.address||'Adres onbekend'}</p>
-            ${s.hours?`<p>🕐 ${s.hours}</p>`:''}
-            ${s.phone?`<p>📞 ${s.phone}</p>`:''}
-        </div>
-    `);
-    storeMarkers.push(m);
-    return m;
-}
-
-/* ── Overpass query met verbeterde naam-matching ── */
-async function tryOverpass(lat,lon,radiusM){
-    // Zoek zowel op naam als op brand-tag voor betere trefkans
-    const q=`[out:json][timeout:20];
+/* ════════════════════════════════════════════════
+   ALLE WINKELS LADEN  (Overpass heel NL + fallback)
+════════════════════════════════════════════════ */
+async function loadAllStores(){
+    const q=`[out:json][timeout:30];
+area["name"="Nederland"]["admin_level"="2"]->.nl;
 (
-  node["name"~"Etos|Kruidvat|Trekpleister",i](around:${radiusM},${lat},${lon});
-  node["brand"~"Etos|Kruidvat|Trekpleister",i](around:${radiusM},${lat},${lon});
-  way["name"~"Etos|Kruidvat|Trekpleister",i](around:${radiusM},${lat},${lon});
-  way["brand"~"Etos|Kruidvat|Trekpleister",i](around:${radiusM},${lat},${lon});
+  node["name"~"Etos|Kruidvat|Trekpleister",i](area.nl);
+  node["brand"~"Etos|Kruidvat|Trekpleister",i](area.nl);
+  way["name"~"Etos|Kruidvat|Trekpleister",i](area.nl);
+  way["brand"~"Etos|Kruidvat|Trekpleister",i](area.nl);
 );
 out center tags;`;
 
-    const endpoints=[
-        'https://overpass-api.de/api/interpreter',
-        'https://lz4.overpass-api.de/api/interpreter'
-    ];
-
-    for(const ep of endpoints){
+    let fromApi=false;
+    for(const ep of['https://overpass-api.de/api/interpreter','https://lz4.overpass-api.de/api/interpreter']){
         try{
-            const r=await fetchWithTimeout(ep,{
-                method:'POST',
-                headers:{'Content-Type':'application/x-www-form-urlencoded'},
-                body:'data='+encodeURIComponent(q)
-            },14000);
-            if(!r.ok) continue;
+            const r=await fwt(ep,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'data='+encodeURIComponent(q)},28000);
+            if(!r.ok)continue;
             const d=await r.json();
-            if(!d.elements?.length) continue;
-
+            if(!d.elements?.length)continue;
             const seen=new Set();
-            let count=0;
             d.elements.forEach(el=>{
-                const eLat=el.lat??el.center?.lat;
-                const eLon=el.lon??el.center?.lon;
-                if(!eLat||!eLon) return;
-
-                // Vergelijk met zowel name als brand tag
-                const rawName=(el.tags?.name||'').trim();
-                const rawBrand=(el.tags?.brand||'').trim();
-                const combined=`${rawName} ${rawBrand}`.toLowerCase();
-                const brand=['Etos','Kruidvat','Trekpleister']
-                    .find(b=>combined.includes(b.toLowerCase()));
-                if(!brand) return;
-
-                const key=`${brand}_${eLat.toFixed(3)}_${eLon.toFixed(3)}`;
-                if(seen.has(key)) return;
-                seen.add(key);
-
-                placeStoreMarker({
-                    brand, lat:eLat, lon:eLon,
+                const la=el.lat??el.center?.lat, lo=el.lon??el.center?.lon;
+                if(!la||!lo)return;
+                const raw=`${el.tags?.name||''} ${el.tags?.brand||''}`.toLowerCase();
+                const brand=['Etos','Kruidvat','Trekpleister'].find(b=>raw.includes(b.toLowerCase()));
+                if(!brand)return;
+                const key=`${brand}_${la.toFixed(3)}_${lo.toFixed(3)}`;
+                if(seen.has(key))return; seen.add(key);
+                allStores.push({brand,lat:la,lon:lo,
                     name:el.tags?.name||brand,
-                    address:[
-                        el.tags?.['addr:street'],
-                        el.tags?.['addr:housenumber'],
-                        el.tags?.['addr:city']
-                    ].filter(Boolean).join(' ')||'',
-                    hours:el.tags?.opening_hours||'',
-                    phone:el.tags?.phone||''
+                    address:[el.tags?.['addr:street'],el.tags?.['addr:housenumber'],el.tags?.['addr:city']].filter(Boolean).join(' ')||'',
+                    hours:el.tags?.opening_hours||DEFAULT_HOURS[brand]||''
                 });
-                count++;
             });
-            if(count>0) return count;   // succes
-        } catch(e){
-            console.warn('Overpass endpoint mislukt:',ep,e.message);
-        }
+            if(allStores.length>10){fromApi=true;break;}
+        }catch(e){console.warn('Overpass:',e.message);}
     }
-    return 0;   // beide endpoints mislukt of geen resultaten
+
+    // Altijd fallback toevoegen voor ontbrekende vestigingen
+    const seen2=new Set(allStores.map(s=>`${s.brand}_${s.lat.toFixed(3)}_${s.lon.toFixed(3)}`));
+    FB.forEach(s=>{
+        const key=`${s.b}_${s.lat.toFixed(3)}_${s.lon.toFixed(3)}`;
+        if(seen2.has(key))return; seen2.add(key);
+        allStores.push({brand:s.b,lat:s.lat,lon:s.lon,name:s.n,address:s.a,hours:DEFAULT_HOURS[s.b]||''});
+    });
+
+    console.info(`Totaal geladen: ${allStores.length} vestigingen (API: ${fromApi})`);
+    renderAllMarkers();
+    updateSidebar();
 }
 
-/* ── Hoofdfunctie: Overpass → fallback → toon altijd winkels ── */
-async function fetchNearbyStores(lat,lon,radiusKm=15){
-    // Verwijder eerder geplaatste markers
+/* ════════════════════════════════════════════════
+   MARKERS
+════════════════════════════════════════════════ */
+function makeIcon(brand){
+    const c=BRAND_CFG[brand]?.color||'#555';
+    return L.divIcon({
+        html:`<div style="width:32px;height:32px;border-radius:50%;background:${c};border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff;font-family:'DM Sans',sans-serif;cursor:pointer;">${brand[0]}</div>`,
+        iconSize:[32,32],iconAnchor:[16,16],popupAnchor:[0,-16],className:''
+    });
+}
+
+function popupHtml(s){
+    const cfg=BRAND_CFG[s.brand]||{color:'#555',bg:'#eee',url:'#'};
+    const dist=(userLat!==null)
+        ? `<span class="dist-badge">📍 ${distLabel(hkm(userLat,userLon,s.lat,s.lon))}</span>`
+        : '';
+    const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name+' '+s.address)}`;
+    return `<div class="store-pop">
+      <div class="pop-head" style="background:${cfg.bg}">
+        <div><span class="s-badge" style="background:rgba(255,255,255,.7);color:${cfg.color}">${s.brand}</span>${dist}</div>
+        <h4>${s.name}</h4>
+      </div>
+      <div class="pop-body">
+        <div class="pop-row">📍 <span>${s.address||'Adres onbekend'}</span></div>
+        <div class="pop-row">🕐 <span>${s.hours||DEFAULT_HOURS[s.brand]||''}</span></div>
+      </div>
+      <div class="pop-footer">
+        <a class="pop-link pop-link-maps" href="${mapsUrl}" target="_blank" rel="noopener">🗺️ Route</a>
+        <a class="pop-link pop-link-shop" style="background:${cfg.color}" href="${cfg.url}" target="_blank" rel="noopener">💊 Hooikoorts</a>
+      </div>
+    </div>`;
+}
+
+function renderAllMarkers(){
     storeMarkers.forEach(m=>map.removeLayer(m));
     storeMarkers=[];
-
-    let found=0;
-
-    // 1) Probeer live Overpass-data
-    found=await tryOverpass(lat,lon,radiusKm*1000);
-
-    // 2) Fallback als Overpass niets opleverde
-    if(found===0){
-        console.info(`Overpass leverde geen resultaten – gebruik hardcoded fallback (radius ${radiusKm} km).`);
-
-        const nearby=FALLBACK_STORES
-            .map(s=>({...s, dist:haversineKm(lat,lon,s.lat,s.lon??s.lng)}))
-            .filter(s=>s.dist<=radiusKm)
-            .sort((a,b)=>a.dist-b.dist);
-
-        const toShow = nearby.length>0
-            ? nearby                                              // alles binnen radius
-            : FALLBACK_STORES                                     // niets in radius →
-                .map(s=>({...s,dist:haversineKm(lat,lon,s.lat,s.lon??s.lng)}))
-                .sort((a,b)=>a.dist-b.dist)
-                .slice(0,6);                                      // toon 6 dichtstbijzijnde
-
-        toShow.forEach(s=>{ placeStoreMarker(s); found++; });
-    }
-
-    return found;
+    allStores.forEach(s=>{
+        if(!activeFilters.has(s.brand))return;
+        const m=L.marker([s.lat,s.lon],{icon:makeIcon(s.brand),pane:'storesPane',interactive:true}).addTo(map);
+        m.bindPopup(popupHtml(s),{maxWidth:300,minWidth:240});
+        m._sd=s;
+        storeMarkers.push(m);
+    });
 }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════════════
+   SIDEBAR STATISTIEKEN
+════════════════════════════════════════════════ */
+function updateSidebar(){
+    const e=allStores.filter(s=>s.brand==='Etos').length;
+    const k=allStores.filter(s=>s.brand==='Kruidvat').length;
+    const t=allStores.filter(s=>s.brand==='Trekpleister').length;
+    document.getElementById('store-count-tag').innerHTML=`${allStores.length} vestigingen`;
+    document.getElementById('store-count-tag').className='tag tag-green';
+    document.getElementById('store-stats').innerHTML=`
+        <div class="store-stat-row">
+            <div class="store-stat"><div class="num" style="color:#0055A5">${e}</div><div class="lbl">Etos</div></div>
+            <div class="store-stat"><div class="num" style="color:#006F3C">${k}</div><div class="lbl">Kruidvat</div></div>
+            <div class="store-stat"><div class="num" style="color:#E30613">${t}</div><div class="lbl">Trek</div></div>
+        </div>
+        <p style="font-size:10px;color:var(--muted);text-align:center;margin-top:6px">Klik een marker voor afstand, tijden & medicijn-link</p>`;
+}
+
+/* ════════════════════════════════════════════════
+   FILTERS
+════════════════════════════════════════════════ */
+function toggleFilter(brand){
+    const map2={Etos:'f-etos',Kruidvat:'f-kruidvat',Trekpleister:'f-trek'};
+    if(activeFilters.has(brand)) activeFilters.delete(brand);
+    else activeFilters.add(brand);
+    document.getElementById(map2[brand]).classList.toggle('inactive',!activeFilters.has(brand));
+    renderAllMarkers();
+}
+
+/* ════════════════════════════════════════════════
    GEOLOCATIE
-═══════════════════════════════════════════ */
+════════════════════════════════════════════════ */
 async function getUserLocation(){
     const btn=document.getElementById('loc-btn');
     const btxt=document.getElementById('btn-txt');
     const bico=document.getElementById('btn-ico');
     const tag=document.getElementById('loc-tag');
-
-    btn.disabled=true;
-    btxt.textContent='Locatie bepalen…';
+    btn.disabled=true; btxt.textContent='Locatie bepalen…';
     bico.innerHTML='<div class="spin"></div>';
     tag.textContent='Ophalen…'; tag.className='tag tag-grey';
+    if(!navigator.geolocation){alert('Geolocatie niet ondersteund.');resetBtn();return;}
 
-    if(!navigator.geolocation){
-        alert('Geolocatie wordt niet ondersteund door deze browser.');
-        resetBtn(); return;
-    }
+    navigator.geolocation.getCurrentPosition(async pos=>{
+        userLat=pos.coords.latitude; userLon=pos.coords.longitude;
+        map.setView([userLat,userLon],13);
 
-    navigator.geolocation.getCurrentPosition(
-        async pos=>{
-            const {latitude:lat, longitude:lon}=pos.coords;
-            map.setView([lat,lon],13);
+        if(userMarker)map.removeLayer(userMarker);
+        userMarker=L.marker([userLat,userLon],{
+            icon:L.divIcon({html:`<div style="width:22px;height:22px;background:#2d7a47;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(45,122,71,.25)"></div>`,iconSize:[22,22],iconAnchor:[11,11],className:''})
+        }).addTo(map).bindPopup('<b>Uw locatie</b>').openPopup();
 
-            // Gebruikersmarker
-            if(userMarker) map.removeLayer(userMarker);
-            userMarker=L.marker([lat,lon],{
-                icon:L.divIcon({
-                    html:`<div style="width:22px;height:22px;background:#2d7a47;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(45,122,71,.25)"></div>`,
-                    iconSize:[22,22],iconAnchor:[11,11],className:''
-                })
-            }).addTo(map).bindPopup('<b>Uw locatie</b>').openPopup();
+        await updateWeather(userLat,userLon);
+        refreshProvinceColors();
 
-            // Winkels + weer parallel laden
-            const [,storeCount]=await Promise.all([
-                updateWeather(lat,lon),
-                fetchNearbyStores(lat,lon,15)   // 15 km radius
-            ]);
-            refreshProvinceColors();
+        // Herrender alle markers met afstand
+        renderAllMarkers();
 
-            // Lokale pollenindex
-            const local=Math.min(100,Math.round((50+Math.random()*30)*weatherFactor));
-            const countMsg=storeCount>0
-                ?`🏪 <strong style="color:var(--green)">${storeCount} drogisterijen</strong> gevonden in de buurt<br><span style="color:var(--muted)">Klik een gekleurde marker op de kaart</span>`
-                :`⚠️ Geen drogisterijen in directe omgeving gevonden`;
+        // Top-5 dichtstbijzijnde
+        const sorted=allStores
+            .map(s=>({...s,d:hkm(userLat,userLon,s.lat,s.lon)}))
+            .sort((a,b)=>a.d-b.d);
 
-            document.getElementById('local-box').innerHTML=`
-                <div style="text-align:center">
-                    <div class="idx-num" style="color:${getColor(local)}">${local}</div>
-                    <div class="idx-lbl">Lokale Pollen Index</div>
-                    <div class="adv-box">
-                        <strong>Analyse Resultaat</strong>
-                        <p>${getAdvice(local)}</p>
-                    </div>
-                    <div class="store-count-box">${countMsg}</div>
-                </div>`;
+        const local=Math.min(100,Math.round((50+Math.random()*30)*weatherFactor));
+        const rows=sorted.slice(0,5).map(s=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--surf2);font-size:11px;">
+                <span style="font-weight:800;color:${BRAND_CFG[s.brand]?.color||'#333'};width:14px;flex-shrink:0">${s.brand[0]}</span>
+                <span style="flex:1;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)">${s.name}</span>
+                <span style="font-weight:700;color:var(--green);flex-shrink:0;font-size:12px">${distLabel(s.d)}</span>
+            </div>`).join('');
 
-            tag.textContent='Actief'; tag.className='tag tag-green';
-            btn.disabled=false;
-            btxt.textContent='Locatie bijgewerkt';
-            bico.textContent='✅';
-        },
-        err=>{
-            const msgs={
-                1:'Geef locatiepermissie in de browserinstellingen.',
-                2:'Locatie kon niet worden bepaald.',
-                3:'Time-out: probeer het opnieuw.'
-            };
-            document.getElementById('local-box').innerHTML=
-                `<p style="color:#c0292d;font-size:12px;padding:12px 0;text-align:center">
-                    ⚠️ ${msgs[err.code]||'Locatie ophalen mislukt.'}
-                 </p>`;
-            tag.textContent='Fout'; tag.className='tag tag-red';
-            resetBtn();
-        },
-        {enableHighAccuracy:false,timeout:12000,maximumAge:30000}
-    );
+        document.getElementById('local-box').innerHTML=`
+            <div style="text-align:center">
+                <div class="idx-num" style="color:${getColor(local)}">${local}</div>
+                <div class="idx-lbl">Lokale Pollen Index</div>
+                <div class="adv-box"><strong>Analyse Resultaat</strong><p>${getAdvice(local)}</p></div>
+            </div>
+            <div style="margin-top:14px">
+                <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-bottom:6px">5 dichtstbijzijnde drogisterijen</div>
+                ${rows}
+            </div>
+            <p style="font-size:10px;color:var(--muted);margin-top:8px;text-align:center;line-height:1.5">Afstand zichtbaar op alle ${allStores.length} markers<br>Klik marker → hooikoorts-link &amp; route</p>`;
+
+        tag.textContent='Actief'; tag.className='tag tag-green';
+        btn.disabled=false; btxt.textContent='Locatie bijgewerkt'; bico.textContent='✅';
+    },err=>{
+        const msgs={1:'Geef locatiepermissie in de browserinstellingen.',2:'Locatie niet beschikbaar.',3:'Time-out: probeer opnieuw.'};
+        document.getElementById('local-box').innerHTML=`<p style="color:#c0292d;font-size:12px;padding:12px 0;text-align:center">⚠️ ${msgs[err.code]||'Fout.'}</p>`;
+        tag.textContent='Fout'; tag.className='tag tag-red'; resetBtn();
+    },{enableHighAccuracy:false,timeout:12000,maximumAge:30000});
 }
 
 function resetBtn(){
-    const btn=document.getElementById('loc-btn');
-    btn.disabled=false;
+    document.getElementById('loc-btn').disabled=false;
     document.getElementById('btn-txt').textContent='Mijn locatie laden';
     document.getElementById('btn-ico').textContent='📍';
 }
